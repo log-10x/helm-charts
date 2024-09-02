@@ -1,0 +1,56 @@
+# Sample config for log10x-jobs which sets up a cloud reporter via github config.
+#
+# For more info on Log10x Cloud Reporter - http://doc.log10x.com/run/apps/cloud/reporter/
+#
+log10xLicense: "YOUR-LOG10X-LICENSE-KEY-HERE"
+
+jobs:
+  # A single job will be deploted.
+  #
+  - name: cloud-reporter
+    # Will run at the beginning of every hour
+    #
+    schedule: "0 * * * *"
+    args:
+      # Marks this as a 'run' pipeline.
+      #
+      # For more info, see - http://doc.log10x.com/run/
+      #
+      - "run"
+    # Setting up config file which will be available to the pod via config map.
+    #
+    # This also automatically adds the file as an argument to the pipeline.
+    # No need to explictly set it.
+    #
+    configFiles:
+        # Utilizes Log10x GitOps approach, by pulling your config directly from GitHub
+        #
+        # For more info, see - http://doc.log10x.com/run/github/
+        #
+      - name: github.yaml
+        content:
+          # Marks this as config file for a 'run' pipeline.
+          #
+          l1x: run
+          include:
+            # Instructs the pipeline to pull configuration fron GitHub
+            #
+            # For more info, see - http://doc.log10x.com/run/github/#__tabbed_1_2
+            source: github
+            options:
+              # Sets up your credentials
+              token: "YOUR-TOKEN"
+              repo: "my-user/my-repo"
+              branch: "main" # Optional param
+              #
+              # Which config to fetch
+              #
+              # 'folders' specifies folders within 'repo' to pull.
+              #
+              folders:
+                - my-config
+              #
+              # 'files' specifies files within 'repo' to pull
+              #
+              files:
+                - my-cloud-reporter-config.yaml

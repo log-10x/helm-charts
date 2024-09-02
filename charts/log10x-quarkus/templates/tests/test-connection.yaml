@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: '{{ include "log10x-quarkus.fullname" . }}-test-connection-main'
+  labels:
+    {{- include "log10x-quarkus.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "log10x-quarkus.fullname" . }}-main:{{ .Values.service.port }}/hello']
+  restartPolicy: Never
+{{- if and .Values.workers.enabled }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: '{{ include "log10x-quarkus.fullname" . }}-test-connection-workers'
+  labels:
+    {{- include "log10x-quarkus.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "log10x-quarkus.fullname" . }}-worker:{{ .Values.service.port }}/hello']
+  restartPolicy: Never
+{{- end }}

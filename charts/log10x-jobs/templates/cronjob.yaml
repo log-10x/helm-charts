@@ -1,0 +1,92 @@
+{{- range .Values.jobs }}
+{{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "log10x-jobs.labels" $ | nindent 4 }}
+spec:
+  concurrencyPolicy: {{ .concurrencyPolicy | default "Allow" }}
+  failedJobsHistoryLimit: {{ .failedJobsHistoryLimit | default 3 }}
+  successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit | default 3 }}
+  schedule: {{ .schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          {{- with $.Values.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            app: {{ include "log10x-jobs.name" $ }}
+            log10x-job-name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+        spec:
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "log10x-jobs.serviceAccountName" $ }}
+          securityContext:
+            {{- toYaml .securityContext | nindent 12 }}
+          restartPolicy: {{ .restartPolicy | default "Never" }}
+          containers:
+          - image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+            imagePullPolicy: {{ $.Values.image.pullPolicy }}
+            name: {{ .name }}
+            env:
+              - name: L1X_LICENSE
+                value: "{{ $.Values.log10xLicense }}"
+            {{- with .extraEnv }}
+              {{- toYaml . | nindent 14 }}
+            {{- end}}
+            {{- if or .args $hasConfigFiles }}
+            args:
+            {{- with .args }}
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- range .configFiles }}
+              - "@/etc/l1x/config/{{ .name }}"
+            {{- end }}
+            {{- end }}
+            {{- with .resources }}
+            resources:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- if or .volumeMounts $hasConfigFiles }}
+            volumeMounts:
+            {{- range .configFiles }}
+              - name: config-volume
+                mountPath: /etc/l1x/config/{{ .name }}
+                subPath: {{ .name }}
+            {{- end }}
+            {{- with .volumeMounts }}
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- end }}
+            {{- with .nodeSelector }}
+            nodeSelector:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .affinity }}
+            affinity:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .tolerations }}
+            tolerations:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+          {{- if or .volumes $hasConfigFiles }}
+          volumes:
+          {{- if $hasConfigFiles }}
+            - name: config-volume
+              configMap:
+                name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}-config
+          {{- end }}
+          {{- with .volumes }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+---
+{{- end }}

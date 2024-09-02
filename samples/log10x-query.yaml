@@ -1,0 +1,71 @@
+# A sample values.yaml for setting up an Log10x Query app using deployments of Quarkus backed servers
+#
+# Handles each query request by performing the 'scan' part on the main deployment
+# and the 'stream' part on the worker deployment
+#
+# For more info, see - http://doc.log10x.com/run/apps/cloud/analyzer/#query
+#
+log10xLicense: "YOUR-LOG10X-LICENSE-KEY-HERE"
+
+# Sample cluster, exposing directly with LoadBalancer and no ingress.
+#
+service:
+  type: LoadBalancer
+
+# Sample cluster, use just a single replica, without autoscalling.
+#
+replicaCount: 1
+
+# A pod with 8 vCPU cores (see 'resources') can handle 10 parallel scan
+# requests in a timely manner
+#
+maxParallelRequests: 10
+maxQueuedRequests: 1000
+
+# Sets resources optimal for scan
+#
+resources:
+  requests:
+    cpu: "8"
+  limits:
+    cpu: "8"
+
+# Prepares the worker deployment for use for the 'stream' part of the query
+#
+workers:
+  enabled: true
+  # Sample cluster, use just 2 replicas, without autoscalling.
+  #
+  replicaCount: 2
+
+  # Set the amount of parallel 'stream' requests each pod will handle.
+  # Note that increasing this will also increase the cpu resource requests
+  # of each pod, in order to preserve performance
+  #
+  maxParallelRequests: 6
+  maxQueuedRequests: 100000
+
+  extraEnv:
+    # Sets a cap on the maximum thread pool size for 'stream' inputs.
+    # This avoids excessive resource consumption and competition between
+    # each 'stream' request, allowing optimal performance.
+    #
+    # For more info, see - http://doc.log10x.com/run/input/#inputthreadpoolsize
+    #
+    - name: inputThreadPoolSize
+      value: "6"
+
+  # Sets resources optimal for 'stream'
+  # For optimal performance, the pod needs roughly a single vCPU per 'stream'
+  # request it is expected to handle in parallel.
+  #
+  resources:
+    requests:
+      cpu: {{- .Values.workers.maxParallelRequests }}
+    limits:
+      cpu: {{- .Values.workers.maxParallelRequests }}
+
+# Sample cluster, no service account
+#
+serviceAccount:
+  create: false

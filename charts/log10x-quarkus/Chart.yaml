@@ -1,0 +1,10 @@
+apiVersion: v2
+description: Official Log10x helm chart for Quarkus-backed Log10x pipeline deployment
+home: https://github.com/log-10x/helm-charts
+maintainers:
+  - email: dor.levi@log10x.com
+    name: dor-levi
+name: log10x-quarkus
+type: application
+version: 0.1.0
+appVersion: "0.4.1"
