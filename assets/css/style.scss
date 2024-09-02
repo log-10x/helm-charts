@@ -1,0 +1,23 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+a {
+	color: #5E8BDE;
+}
+
+a:hover {
+	color: #526CFE;
+}
+
+#header {
+	background:none;
+	border-bottom:none;
+	background-color: hsla(225deg,15%,9%,1);
+}
+
+body {
+	color: hsla(225deg,15%,90%,0.82);
+	background: hsla(225deg,15%,14%,1);
+}
