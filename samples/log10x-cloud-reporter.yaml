@@ -1,4 +1,4 @@
-# Sample config for log10x-jobs which sets up a cloud reporter via github config.
+# Sample config for log10x-cron which sets up a cloud reporter via github config.
 #
 # For more info on Log10x Cloud Reporter - http://doc.log10x.com/run/apps/cloud/reporter/
 #
@@ -35,7 +35,7 @@ jobs:
           include:
             # Instructs the pipeline to pull configuration fron GitHub
             #
-            # For more info, see - http://doc.log10x.com/run/github/#__tabbed_1_2
+            # For more info, see - http://doc.log10x.com/home/config/github/
             source: github
             options:
               # Sets up your credentials

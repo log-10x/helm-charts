@@ -25,13 +25,13 @@ To monitor these Log10x pipeline jobs and their executions, you can use the foll
 {{- range .Values.jobs }}
 
 1. **Check CronJob details for {{ .name }}:**
-   kubectl get cronjob {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+   kubectl get cronjob {{ include "log10x-cron.fullname" $ }}-{{ .name }}
 
 2. **View the logs of the last job for {{ .name }}:**
-   kubectl logs -l log10x-job-name={{ include "log10x-jobs.fullname" $ }}-{{ .name }} --tail=50
+   kubectl logs -l log10x-cron-name={{ include "log10x-cron.fullname" $ }}-{{ .name }} --tail=50
 
 3. **Check the status of the last run for {{ .name }}:**
-   kubectl get jobs --sort-by=.metadata.creationTimestamp | grep {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+   kubectl get jobs --sort-by=.metadata.creationTimestamp | grep {{ include "log10x-cron.fullname" $ }}-{{ .name }}
 
 {{- end }}
 

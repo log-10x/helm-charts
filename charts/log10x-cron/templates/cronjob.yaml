@@ -3,9 +3,9 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+  name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
   labels:
-    {{- include "log10x-jobs.labels" $ | nindent 4 }}
+    {{- include "log10x-cron.labels" $ | nindent 4 }}
 spec:
   concurrencyPolicy: {{ .concurrencyPolicy | default "Allow" }}
   failedJobsHistoryLimit: {{ .failedJobsHistoryLimit | default 3 }}
@@ -20,14 +20,14 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           labels:
-            app: {{ include "log10x-jobs.name" $ }}
-            log10x-job-name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}
+            app: {{ include "log10x-cron.name" $ }}
+            log10x-cron-name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
         spec:
           {{- with $.Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          serviceAccountName: {{ include "log10x-jobs.serviceAccountName" $ }}
+          serviceAccountName: {{ include "log10x-cron.serviceAccountName" $ }}
           securityContext:
             {{- toYaml .securityContext | nindent 12 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
@@ -82,7 +82,7 @@ spec:
           {{- if $hasConfigFiles }}
             - name: config-volume
               configMap:
-                name: {{ include "log10x-jobs.fullname" $ }}-{{ .name }}-config
+                name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}-config
           {{- end }}
           {{- with .volumes }}
             {{- toYaml . | nindent 12 }}
