@@ -1,4 +1,4 @@
-# Log10x Jobs Helm chart
+# Log10x Cron Helm chart
 
 [Log10x](http://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
@@ -12,16 +12,16 @@ To add the `log10x` helm repo, run:
 helm repo add log10x https://log-10x.github.io/helm-charts
 ```
 
-To install a release named `my-log10x-jobs`, run:
+To install a release named `my-log10x-cron`, run:
 
 ```sh
-helm install my-log10x-jobs log10x/log10x-jobs
+helm install my-log10x-cron log10x/log10x-cron
 ```
 
 ## Chart values
 
 ```sh
-helm show values log10x/log10x-jobs
+helm show values log10x/log10x-cron
 ```
 
 ## Example usage

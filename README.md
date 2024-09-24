@@ -13,9 +13,9 @@ The [Log10x Quarkus](https://github.com/log-10x/helm-charts/tree/main/charts/log
 
 For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/quarkus
 
-## Log10x Jobs
+## Log10x Cron
 
-The [Log10x Jobs](https://github.com/log-10x/helm-charts/tree/main/charts/log10x-jobs) chart sets up periodic cron jobs for running pre-defined Log10x pipelines based on a schedule
+The [Log10x Cron](https://github.com/log-10x/helm-charts/tree/main/charts/log10x-cron) chart sets up periodic cron jobs for running pre-defined Log10x pipelines based on a schedule
 
 For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/pipeline
 
