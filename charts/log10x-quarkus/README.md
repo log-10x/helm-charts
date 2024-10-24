@@ -1,10 +1,14 @@
-# Log10x Quarkus Helm chart
+# 🔟❎ Log10x Quarkus Helm chart
 
 [Log10x](http://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
-This chart sets up a cluster of Quarkus servers exposing a RestAPI endpoint which executes an [Log10x pipeline](http://doc.log10x.com/home/pipeline/).
+This chart sets up a cluster of Quarkus servers exposing a RestAPI endpoint which executes an [Log10x pipeline](http://doc.log10x.com/concepts/pipeline).
 
-A common use case for such cluster is to support an [Log10x Stream Abalyzer](http://doc.log10x.com/run/apps/cloud/analyzer/) with the [query part](http://doc.log10x.com/run/apps/cloud/analyzer/#query)
+Use this chart to set up [Query cluster](http://doc.log10x.com/run/apps/cloud/stream/#query) for the [Log10x Storage Stream](http://doc.log10x.com/run/apps/cloud/stream)
+
+## How to deploy
+
+Deployment instructions for the Query cluster are found [Here](http://doc.log10x.com/deploy/apps/cloud/stream)
 
 ## Installation
 
