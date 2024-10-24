@@ -1,8 +1,16 @@
-# Log10x Cron Helm chart
+# 🔟❎ Log10x Cron Helm chart
 
 [Log10x](http://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
-This chart sets up scheduled jobs to periodically executes an [Log10x pipeline](http://doc.log10x.com/home/pipeline/) inside k8.
+This chart sets up scheduled jobs to periodically executes a [Log10x pipeline](http://doc.log10x.com/concepts/pipeline) inside k8.
+
+Use this chart to set up periodic [Compile pipeline](http://doc.log10x.com/compile) or [Log10x Cloud Reporter](http://doc.log10x.com/run/apps/cloud/reporter)
+
+## How to deploy
+
+Deployment instructions for Compile are found [Here](http://doc.log10x.com/deploy/compile)
+
+Deployment instructions for Cloud Reporter are found [Here](http://doc.log10x.com/deploy/apps/cloud/reporter)
 
 ## Installation
 
