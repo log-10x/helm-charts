@@ -6,5 +6,5 @@ maintainers:
     name: dor-levi
 name: log10x-quarkus
 type: application
-version: 0.3.0
-appVersion: "0.10.2"
+version: "0.3.1"
+appVersion: "0.10.3"
