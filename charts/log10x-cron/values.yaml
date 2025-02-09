@@ -31,7 +31,7 @@ jobs:
   - name: sample-pipeline
 
     # This is the name or the L1x pipeline process running inside the pod
-    runtimeName: my-first-pipeline # Optional
+    runtimeName: my-first-pipeline   # Optional
 
     # Controls the run schedule of the task
     # Run every 10 mintues
