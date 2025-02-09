@@ -5,52 +5,64 @@
 log10xLicense: "YOUR-LOG10X-LICENSE-KEY-HERE"
 
 jobs:
-  # A single job will be deploted.
+  # A single job will be deployed.
   #
   - name: cloud-reporter
-    # Will run at the beginning of every hour
+
+    # Pipeline name which will be reported to identify this job
     #
-    schedule: "0 * * * *"
+    runtimeName: my-first-cloud-reporter
+
+    # Will run every 15 minutes, at the 00/15/30/45 minute mark of every hour
+    #
+    schedule: "*/15 * * * *"
     args:
       # Marks this as a 'run' pipeline.
       #
       # For more info, see - http://doc.log10x.com/run/
       #
       - "run"
-    # Setting up config file which will be available to the pod via config map.
+
+      # Run the cloud reporter application
+      #
+      # For more info, see - http://doc.log10x.com/run/apps/cloud/reporter
+      #
+      - "@run/apps/cloud/reporter"
+
+    # Load application configuration from github
     #
-    # This also automatically adds the file as an argument to the pipeline.
-    # No need to explictly set it.
+    # NOTE: Don't forget to check that all necessary files in the specified repo/branch
+    # are up to date and contain the correct current information.
+    # This should include any required parameters, credentials, and settings used
+    # By the L1x pipeline as part of your selected app configuration.
     #
-    configFiles:
-        # Utilizes Log10x GitOps approach, by pulling your config directly from GitHub
+    # For more info, see - http://doc.log10x.com/deploy/apps/cloud/reporter
+    #
+    github:
+      config:
+        # Access token for GitHub.
+        # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
         #
-        # For more info, see - http://doc.log10x.com/run/github/
+        token: "YOUR-TOKEN-HERE"
+
+        # The repo to fetch the config from
         #
-      - name: github.yaml
-        content:
-          # Marks this as config file for a 'run' pipeline.
-          #
-          l1x: run
-          include:
-            # Instructs the pipeline to pull configuration fron GitHub
-            #
-            # For more info, see - http://doc.log10x.com/home/config/github/
-            source: github
-            options:
-              # Sets up your credentials
-              token: "YOUR-TOKEN"
-              repo: "my-user/my-repo"
-              branch: "main" # Optional param
-              #
-              # Which config to fetch
-              #
-              # 'folders' specifies folders within 'repo' to pull.
-              #
-              folders:
-                - my-config
-              #
-              # 'files' specifies files within 'repo' to pull
-              #
-              files:
-                - my-cloud-reporter-config.yaml
+        repo: "YOUR-ACCOUNT/REPO-NAME"
+
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "my-cloud-reporter-config"
+
+    # Additional env variables, as needed
+    #
+    # extraEnv:
+    #   - name: "MY_ANALYZER_USERNAME"
+    #   valueFrom:
+    #     secretKeyRef:
+    #       name: analyzer-credentials
+    #       key: username
+    #   - name: "MY_ANALYZER_PASSWORD"
+    #     valueFrom:
+    #       secretKeyRef:
+    #         name: analyzer-credentials
+    #         key: password
