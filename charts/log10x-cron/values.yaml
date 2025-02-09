@@ -46,29 +46,29 @@ jobs:
     # If defined, will spawn an init container which will pull config/symbols and make it available for the l1x
     # pipeline in place of the config bundled with the container image.
     #
-    # github:
-    #   config:
-    #     # Access token for GitHub.
-    #     # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-    #     token: "MY-TOKEN"
-    #     # The repo to fetch the config from
-    #     repo: "user-name/config-repo"
-    #     # Optional - a branch to pull.
-    #     # If omitted, the default repo branch will be used.
-    #     branch: "main"
+    github:
+      config:
+        # Access token for GitHub.
+        # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+        token: "MY-TOKEN"
+        # The repo to fetch the config from
+        repo: "user-name/config-repo"
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "main"
 
-    #   symbols:
-    #     # Access token for GitHub.
-    #     # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-    #     token: "MY-TOKEN"
-    #     # The repo to fetch the config from
-    #     repo: "user-name/symbols-repo"
-    #     # Optional - a branch to pull.
-    #     # If omitted, the default repo branch will be used.
-    #     branch: "main"
-    #     # Optional - a sub folder inside the repo where symbols were placed.
-    #     # If omitted, the entire repo is considered as the symbols path.
-    #     path: "l1x/my-app/symbols"
+      symbols:
+        # Access token for GitHub.
+        # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+        token: "MY-TOKEN"
+        # The repo to fetch the config from
+        repo: "user-name/symbols-repo"
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "main"
+        # Optional - a sub folder inside the repo where symbols were placed.
+        # If omitted, the entire repo is considered as the symbols path.
+        path: "l1x/my-app/symbols"
 
     # Additional env vars, if needed
     # extraEnv:
