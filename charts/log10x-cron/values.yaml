@@ -27,19 +27,61 @@ imagePullSecrets: []
 ###### Jobs ######
 
 jobs:
+    # This is the name of the job, which will be used inside k8
   - name: sample-pipeline
+
+    # This is the name or the L1x pipeline process running inside the pod
+    runtimeName: my-first-pipeline # Optional
+
+    # Controls the run schedule of the task
     # Run every 10 mintues
     schedule: "*/10 * * * *"
+
+    # Sets list of cli arguments to pass to the l1x pipeline
+    # For more details, see http://doc.log10x.com/config/cli
     args:
       - "run"
-    # optional env vars
+
+    # Full config via github using git-ops approach (https://www.redhat.com/en/topics/devops/what-is-gitops)
+    # If defined, will spawn an init container which will pull config/symbols and make it available for the l1x
+    # pipeline in place of the config bundled with the container image.
+    #
+    # github:
+    #   config:
+    #     # Access token for GitHub.
+    #     # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+    #     token: "MY-TOKEN"
+    #     # The repo to fetch the config from
+    #     repo: "user-name/config-repo"
+    #     # Optional - a branch to pull.
+    #     # If omitted, the default repo branch will be used.
+    #     branch: "main"
+
+    #   symbols:
+    #     # Access token for GitHub.
+    #     # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+    #     token: "MY-TOKEN"
+    #     # The repo to fetch the config from
+    #     repo: "user-name/symbols-repo"
+    #     # Optional - a branch to pull.
+    #     # If omitted, the default repo branch will be used.
+    #     branch: "main"
+    #     # Optional - a sub folder inside the repo where symbols were placed.
+    #     # If omitted, the entire repo is considered as the symbols path.
+    #     path: "l1x/my-app/symbols"
+
+    # Additional env vars, if needed
     # extraEnv:
     #   - name: MY_VAR
     #     value: "SOME_VALUE"
+
+    # Optionally add on-the-fly arguments to the l1x pipeline in yaml format.
+    # For more details, see http://doc.log10x.com/config/yaml
     configFiles:
       # - name: my-config.yaml
       #   content:
       #     my-key: my-value
+
     resources: {}
       # We usually recommend not to specify default resources and to leave this as a conscious
       # choice for the user. This also increases chances charts run on environments with little

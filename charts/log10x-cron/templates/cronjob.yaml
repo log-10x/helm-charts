@@ -1,5 +1,6 @@
 {{- range .Values.jobs }}
 {{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
+{{- $l1xGHInit := or .github.config .github.symbols -}}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -31,6 +32,35 @@ spec:
           securityContext:
             {{- toYaml .securityContext | nindent 12 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
+          {{- if $l1xGHInit }}
+          initContainers:
+            - name: l1x-git-config
+              image: ghcr.io/log-10x/github-config-fetcher:0.2.0
+              args:
+                {{- if .github.config }}
+                - "--config-repo"
+                - "https://{{ .github.config.token }}@github.com/{{ .github.config.repo }}.git"
+                {{- if .github.config.branch }}
+                - "--config-branch"
+                - "{{ .github.config.branch }}"
+                {{- end }}
+                {{- end }}
+                {{- if .github.symbols }}
+                - "--symbols-repo"
+                - "https://{{ .github.symbols.token }}@github.com/{{ .github.symbols.repo }}.git"
+                {{- if .github.symbols.branch }}
+                - "--symbols-branch"
+                - "{{ .github.symbols.branch }}"
+                {{- end }}
+                {{- if .github.symbols.path }}
+                - "--symbols-path"
+                - "{{ .github.symbols.path }}"
+                {{- end }}
+                {{- end }}
+              volumeMounts:
+                - name: shared-git-volume
+                  mountPath: /data
+          {{- end }}
           containers:
           - image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
             imagePullPolicy: {{ $.Values.image.pullPolicy }}
@@ -38,6 +68,18 @@ spec:
             env:
               - name: L1X_LICENSE
                 value: "{{ $.Values.log10xLicense }}"
+            {{- if .runtimeName }}
+              - name: L1X_RUNTIME_NAME
+                value: "{{ .runtimeName }}"
+            {{- end}}
+            {{- if .github.config }}
+              - name: L1X_CONFIG
+                value: "/etc/l1x/git/config"
+            {{- end }}
+            {{- if .github.symbols }}
+              - name: L1X_SYMBOLS_PATH
+                value: "/etc/l1x/git/config/data/shared/symbols"
+            {{- end }}
             {{- with .extraEnv }}
               {{- toYaml . | nindent 14 }}
             {{- end}}
@@ -54,8 +96,12 @@ spec:
             resources:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-            {{- if or .volumeMounts $hasConfigFiles }}
+            {{- if or $l1xGHInit .volumeMounts $hasConfigFiles }}
             volumeMounts:
+            {{- if $l1xGHInit }}
+              - name: shared-git-volume
+                mountPath: /etc/l1x/git
+            {{- end }}
             {{- range .configFiles }}
               - name: config-volume
                 mountPath: /etc/l1x/config/{{ .name }}
@@ -77,8 +123,12 @@ spec:
             tolerations:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-          {{- if or .volumes $hasConfigFiles }}
+          {{- if or $l1xGHInit .volumes $hasConfigFiles }}
           volumes:
+          {{- if $l1xGHInit }}
+            - name: shared-git-volume
+              emptyDir: {}
+          {{- end }}
           {{- if $hasConfigFiles }}
             - name: config-volume
               configMap:
