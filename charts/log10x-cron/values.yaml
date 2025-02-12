@@ -7,10 +7,6 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# License key is added to all containers via environment variable L1X_LICENSE
-#
-log10xLicense: "NO-LICENSE"
-
 ###### Image settings ######
 
 image:
@@ -23,6 +19,10 @@ image:
 # secrets to allow pull access.
 #
 imagePullSecrets: []
+
+# License key is added to all pods via environment variable L1X_LICENSE
+#
+log10xLicense: "NO-LICENSE"
 
 ###### Jobs ######
 
@@ -42,7 +42,7 @@ jobs:
     args:
       - "run"
 
-    # Full config via github using git-ops approach (https://www.redhat.com/en/topics/devops/what-is-gitops)
+    # Full config via github using git-ops approach (http://doc.log10x.com/concepts/gitops)
     # If defined, will spawn an init container which will pull config/symbols and make it available for the l1x
     # pipeline in place of the config bundled with the container image.
     #
@@ -71,7 +71,7 @@ jobs:
         path: "l1x/my-app/symbols"
 
     # Additional env vars, if needed
-    # extraEnv:
+    extraEnv:
     #   - name: MY_VAR
     #     value: "SOME_VALUE"
 
