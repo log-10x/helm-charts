@@ -3,6 +3,20 @@ entries:
   log10x-cron:
   - apiVersion: v2
     appVersion: 0.12.0
+    created: "2025-02-12T18:42:09.808113156Z"
+    description: Official Log10x helm chart for executing periodic Log10x pipelines
+    digest: 9d2e0a4cffe8b597cbf2b8d44fa242c07143e9aa8e57aa33edeac0e26276ceb0
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: log10x-cron
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/log10x-cron-0.3.6/log10x-cron-0.3.6.tgz
+    version: 0.3.6
+  - apiVersion: v2
+    appVersion: 0.12.0
     created: "2025-02-09T13:35:23.329612773Z"
     description: Official Log10x helm chart for executing periodic Log10x pipelines
     digest: d14b90930db7dc701e74d5482357aa660a887130abb566149cc3be0d3a8c96d7
@@ -198,4 +212,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/log10x-quarkus-0.1.0/log10x-quarkus-0.1.0.tgz
     version: 0.1.0
-generated: "2025-02-09T13:35:23.329659561Z"
+generated: "2025-02-12T18:42:09.808165544Z"
