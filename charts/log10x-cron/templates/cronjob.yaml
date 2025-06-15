@@ -1,6 +1,6 @@
 {{- range .Values.jobs }}
 {{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
-{{- $l1xGHInit := or .github.config .github.symbols -}}
+{{- $tenxGHInit := or .github.config .github.symbols -}}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -32,9 +32,9 @@ spec:
           securityContext:
             {{- toYaml .securityContext | nindent 12 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
-          {{- if $l1xGHInit }}
+          {{- if $tenxGHInit }}
           initContainers:
-            - name: l1x-git-config
+            - name: tenx-git-config
               image: ghcr.io/log-10x/github-config-fetcher:0.2.0
               args:
                 {{- if .github.config }}
@@ -66,19 +66,19 @@ spec:
             imagePullPolicy: {{ $.Values.image.pullPolicy }}
             name: {{ .name }}
             env:
-              - name: L1X_LICENSE
+              - name: TENX_LICENSE
                 value: "{{ $.Values.log10xLicense }}"
             {{- if .runtimeName }}
-              - name: L1X_RUNTIME_NAME
+              - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"
             {{- end}}
             {{- if .github.config }}
-              - name: L1X_CONFIG
-                value: "/etc/l1x/git/config"
+              - name: TENX_CONFIG
+                value: "/etc/tenx/git/config"
             {{- end }}
             {{- if .github.symbols }}
-              - name: L1X_SYMBOLS_PATH
-                value: "/etc/l1x/git/config/data/shared/symbols"
+              - name: TENX_SYMBOLS_PATH
+                value: "/etc/tenx/git/config/data/shared/symbols"
             {{- end }}
             {{- with .extraEnv }}
               {{- toYaml . | nindent 14 }}
@@ -89,22 +89,22 @@ spec:
               {{- toYaml . | nindent 14 }}
             {{- end }}
             {{- range .configFiles }}
-              - "@/etc/l1x/config/{{ .name }}"
+              - "@/etc/tenx/config/{{ .name }}"
             {{- end }}
             {{- end }}
             {{- with .resources }}
             resources:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-            {{- if or $l1xGHInit .volumeMounts $hasConfigFiles }}
+            {{- if or $tenxGHInit .volumeMounts $hasConfigFiles }}
             volumeMounts:
-            {{- if $l1xGHInit }}
+            {{- if $tenxGHInit }}
               - name: shared-git-volume
-                mountPath: /etc/l1x/git
+                mountPath: /etc/tenx/git
             {{- end }}
             {{- range .configFiles }}
               - name: config-volume
-                mountPath: /etc/l1x/config/{{ .name }}
+                mountPath: /etc/tenx/config/{{ .name }}
                 subPath: {{ .name }}
             {{- end }}
             {{- with .volumeMounts }}
@@ -123,9 +123,9 @@ spec:
             tolerations:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-          {{- if or $l1xGHInit .volumes $hasConfigFiles }}
+          {{- if or $tenxGHInit .volumes $hasConfigFiles }}
           volumes:
-          {{- if $l1xGHInit }}
+          {{- if $tenxGHInit }}
             - name: shared-git-volume
               emptyDir: {}
           {{- end }}

@@ -7,7 +7,7 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# License key is added to all containers via environment variable L1X_LICENSE
+# License key is added to all containers via environment variable TENX_LICENSE
 #
 log10xLicense: "NO-LICENSE"
 

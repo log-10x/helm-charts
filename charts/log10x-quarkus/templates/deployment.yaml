@@ -38,14 +38,14 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: L1X_LICENSE
+            - name: TENX_LICENSE
               value: "{{ .Values.log10xLicense }}"
-            - name: L1X_QUARKUS_MAX_ASYNC
+            - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.maxParallelRequests }}"
-            - name: L1X_QUARKUS_MAX_QUEUED
+            - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.maxQueuedRequests }}"
           {{- if and .Values.workers.enabled }}
-            - name: L1X_WORKER_NAME
+            - name: TENX_WORKER_NAME
               value: '{{ include "log10x-quarkus.fullname" . }}-worker'
           {{- end }}
           {{- with .Values.extraEnv }}
@@ -119,13 +119,13 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: L1X_LICENSE
+            - name: TENX_LICENSE
               value: "{{ .Values.log10xLicense }}"
-            - name: L1X_QUARKUS_MAX_ASYNC
+            - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.workers.maxParallelRequests }}"
-            - name: L1X_QUARKUS_MAX_QUEUED
+            - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.workers.maxQueuedRequests }}"
-            - name: L1X_WORKER_NAME
+            - name: TENX_WORKER_NAME
               value: {{ include "log10x-quarkus.fullname" . }}-worker
           {{- with .Values.workers.extraEnv }}
             {{- toYaml . | nindent 12 }}
