@@ -14,7 +14,7 @@ log10xLicense: "NO-LICENSE"
 ###### Image settings ######
 
 image:
-  repository: ghcr.io/log-10x/log10x-quarkus
+  repository: ghcr.io/log-10x/quarkus-10x
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

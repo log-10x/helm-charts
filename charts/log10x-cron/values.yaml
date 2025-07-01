@@ -10,7 +10,7 @@ fullnameOverride: ""
 ###### Image settings ######
 
 image:
-  repository: ghcr.io/log-10x/log10x-pipeline
+  repository: ghcr.io/log-10x/pipeline-10x
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
