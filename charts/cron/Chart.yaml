@@ -4,7 +4,7 @@ home: https://github.com/log-10x/helm-charts
 maintainers:
   - email: dor.levi@log10x.com
     name: dor-levi
-name: log10x-cron
+name: cron-10x
 type: application
-version: "0.3.6"
-appVersion: "0.12.0"
+version: "0.4.0"
+appVersion: "0.21.0"

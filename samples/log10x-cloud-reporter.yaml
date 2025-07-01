@@ -34,7 +34,7 @@ jobs:
     # NOTE: Don't forget to check that all necessary files in the specified repo/branch
     # are up to date and contain the correct current information.
     # This should include any required parameters, credentials, and settings used
-    # By the L1x pipeline as part of your selected app configuration.
+    # By the 10x pipeline as part of your selected app configuration.
     #
     # For more info, see - http://doc.log10x.com/deploy/apps/cloud/reporter
     #

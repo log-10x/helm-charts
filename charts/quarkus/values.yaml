@@ -7,14 +7,14 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# License key is added to all containers via environment variable L1X_LICENSE
+# License key is added to all containers via environment variable TENX_LICENSE
 #
 log10xLicense: "NO-LICENSE"
 
 ###### Image settings ######
 
 image:
-  repository: ghcr.io/log-10x/log10x-quarkus
+  repository: ghcr.io/log-10x/quarkus-10x
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

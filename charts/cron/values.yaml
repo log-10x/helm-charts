@@ -10,7 +10,7 @@ fullnameOverride: ""
 ###### Image settings ######
 
 image:
-  repository: ghcr.io/log-10x/log10x-pipeline
+  repository: ghcr.io/log-10x/pipeline-10x
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -20,7 +20,7 @@ image:
 #
 imagePullSecrets: []
 
-# License key is added to all pods via environment variable L1X_LICENSE
+# License key is added to all pods via environment variable TENX_LICENSE
 #
 log10xLicense: "NO-LICENSE"
 
@@ -30,20 +30,20 @@ jobs:
     # This is the name of the job, which will be used inside k8
   - name: sample-pipeline
 
-    # This is the name or the L1x pipeline process running inside the pod
+    # This is the name or the 10x pipeline process running inside the pod
     runtimeName: my-first-pipeline   # Optional
 
     # Controls the run schedule of the task
     # Run every 10 mintues
     schedule: "*/10 * * * *"
 
-    # Sets list of cli arguments to pass to the l1x pipeline
+    # Sets list of cli arguments to pass to the 10x pipeline
     # For more details, see http://doc.log10x.com/config/cli
     args:
       - "run"
 
     # Full config via github using git-ops approach (http://doc.log10x.com/concepts/gitops)
-    # If defined, will spawn an init container which will pull config/symbols and make it available for the l1x
+    # If defined, will spawn an init container which will pull config/symbols and make it available for the 10x
     # pipeline in place of the config bundled with the container image.
     #
     github:
@@ -68,14 +68,14 @@ jobs:
         branch: "main"
         # Optional - a sub folder inside the repo where symbols were placed.
         # If omitted, the entire repo is considered as the symbols path.
-        path: "l1x/my-app/symbols"
+        path: "tenx/my-app/symbols"
 
     # Additional env vars, if needed
     extraEnv:
     #   - name: MY_VAR
     #     value: "SOME_VALUE"
 
-    # Optionally add on-the-fly arguments to the l1x pipeline in yaml format.
+    # Optionally add on-the-fly arguments to the 10x pipeline in yaml format.
     # For more details, see http://doc.log10x.com/config/yaml
     configFiles:
       # - name: my-config.yaml
