@@ -38,8 +38,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: TENX_LICENSE
-              value: "{{ .Values.log10xLicense }}"
+            - name: TENX_API_KEY
+              value: "{{ $.Values.log10xApiKey }}"
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
@@ -119,8 +119,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-            - name: TENX_LICENSE
-              value: "{{ .Values.log10xLicense }}"
+            - name: TENX_API_KEY
+              value: "{{ $.Values.log10xApiKey }}"
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.workers.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED

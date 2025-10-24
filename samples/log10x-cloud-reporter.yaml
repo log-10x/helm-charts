@@ -2,7 +2,7 @@
 #
 # For more info on Log10x Cloud Reporter - http://doc.log10x.com/run/apps/cloud/reporter/
 #
-log10xLicense: "YOUR-LOG10X-LICENSE-KEY-HERE"
+log10xApiKey: "YOUR-API-KEY"
 
 jobs:
   # A single job will be deployed.

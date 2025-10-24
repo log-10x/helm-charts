@@ -35,7 +35,7 @@ helm show values log10x/log10x-quarkus
 A minimal yaml setting up a cluster is:
 
 ```yaml
-log10xLicense: "YOUR-LICENSE-KEY"
+log10xApiKey: "YOUR-API-KEY"
 
 # Sample cluster, exposing directly with LoadBalancer and no ingress, single replica, no autoscale
 #
