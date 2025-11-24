@@ -2,6 +2,20 @@ apiVersion: v1
 entries:
   cron-10x:
   - apiVersion: v2
+    appVersion: 0.29.0
+    created: "2025-11-24T12:17:35.727790268Z"
+    description: Official Log10x helm chart for executing periodic Log10x pipelines
+    digest: 85bba03a5f8b88319ba30195e9d804fcf8700443f83b4ba16883a178b997de0a
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: cron-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/cron-10x-0.5.0/cron-10x-0.5.0.tgz
+    version: 0.5.0
+  - apiVersion: v2
     appVersion: 0.21.0
     created: "2025-07-01T09:39:58.396061663Z"
     description: Official Log10x helm chart for executing periodic Log10x pipelines
@@ -17,6 +31,20 @@ entries:
     version: 0.4.0
   quarkus-10x:
   - apiVersion: v2
+    appVersion: 0.29.0
+    created: "2025-11-24T12:17:35.872561709Z"
+    description: Official Log10x helm chart for Quarkus-backed Log10x pipeline deployment
+    digest: 8e8a294876c249fe36b01007e28359be8d802ae5ec0a12368e4b828d7d0ffcc8
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: quarkus-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/quarkus-10x-0.5.0/quarkus-10x-0.5.0.tgz
+    version: 0.5.0
+  - apiVersion: v2
     appVersion: 0.21.0
     created: "2025-07-01T09:39:58.520861643Z"
     description: Official Log10x helm chart for Quarkus-backed Log10x pipeline deployment
@@ -30,4 +58,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/quarkus-10x-0.4.0/quarkus-10x-0.4.0.tgz
     version: 0.4.0
-generated: "2025-07-01T09:39:58.520876551Z"
+generated: "2025-11-24T12:17:35.872572329Z"
