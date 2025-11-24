@@ -37,7 +37,7 @@ helm show values log10x/log10x-cron
 A minimal yaml setting up a periodic job is:
 
 ```yaml
-log10xLicense: "YOUR-LICENSE-KEY"
+log10xApiKey: "YOUR-API-KEY"
 
 jobs:
     # Job name

@@ -66,8 +66,8 @@ spec:
             imagePullPolicy: {{ $.Values.image.pullPolicy }}
             name: {{ .name }}
             env:
-              - name: TENX_LICENSE
-                value: "{{ $.Values.log10xLicense }}"
+              - name: TENX_API_KEY
+                value: "{{ $.Values.log10xApiKey }}"
             {{- if .runtimeName }}
               - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"

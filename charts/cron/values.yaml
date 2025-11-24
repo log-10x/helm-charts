@@ -20,9 +20,8 @@ image:
 #
 imagePullSecrets: []
 
-# License key is added to all pods via environment variable TENX_LICENSE
-#
-log10xLicense: "NO-LICENSE"
+# API key is added to all pods via environment variable TENX_API_KEY
+log10xApiKey: "YOUR-API-KEY-HERE"
 
 ###### Jobs ######
 
