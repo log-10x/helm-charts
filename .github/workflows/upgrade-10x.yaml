@@ -118,5 +118,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.UPGRADE_ACTION_TOKEN }}
         run: |
-          gh pr merge "${{ steps.create_pr.outputs.pr_url }}" --merge --delete-branch
+          gh pr merge "${{ steps.create_pr.outputs.pr_url }}" --squash --delete-branch
 
