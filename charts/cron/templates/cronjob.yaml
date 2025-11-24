@@ -1,6 +1,6 @@
 {{- range .Values.jobs }}
 {{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
-{{- $tenxGHInit := or .github.config .github.symbols -}}
+{{- $tenxGHInit := or (and .github .github.config) (and .github .github.symbols) -}}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -72,11 +72,11 @@ spec:
               - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"
             {{- end}}
-            {{- if .github.config }}
+            {{- if and .github .github.config }}
               - name: TENX_CONFIG
                 value: "/etc/tenx/git/config"
             {{- end }}
-            {{- if .github.symbols }}
+            {{- if and .github .github.symbols }}
               - name: TENX_SYMBOLS_PATH
                 value: "/etc/tenx/git/config/data/shared/symbols"
             {{- end }}

@@ -17,17 +17,11 @@ jobs:
     #
     schedule: "*/15 * * * *"
     args:
-      # Marks this as a 'run' pipeline.
-      #
-      # For more info, see - http://doc.log10x.com/run/
-      #
-      - "run"
-
       # Run the cloud reporter application
       #
-      # For more info, see - http://doc.log10x.com/run/apps/cloud/reporter
+      # For more info, see - http://doc.log10x.com/apps/cloud/reporter
       #
-      - "@run/apps/cloud/reporter"
+      - "@apps/cloud/reporter"
 
     # Load application configuration from github
     #
@@ -36,7 +30,7 @@ jobs:
     # This should include any required parameters, credentials, and settings used
     # By the 10x pipeline as part of your selected app configuration.
     #
-    # For more info, see - http://doc.log10x.com/deploy/apps/cloud/reporter
+    # For more info, see - http://doc.log10x.com/apps/cloud/reporter/deploy
     #
     github:
       config:
@@ -57,7 +51,7 @@ jobs:
     #
     # extraEnv:
     #   - name: "MY_ANALYZER_USERNAME"
-    #   valueFrom:
+    #     valueFrom:
     #     secretKeyRef:
     #       name: analyzer-credentials
     #       key: username
