@@ -7,8 +7,37 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# API key is added to all pods via environment variable TENX_API_KEY
-log10xApiKey: "YOUR-API-KEY-HERE"
+# API key for Log10x authentication
+# Used when secret.create is true and no existingSecret is specified
+# SECURITY WARNING: Do not commit actual API keys to version control
+# Provide via: --set log10xApiKey="your-key" or separate values file
+#
+log10xApiKey: ""
+
+###### Secret Management ######
+
+# Secret containing the TENX_API_KEY
+#
+secret:
+  # Set to true to let the chart manage the secret lifecycle
+  # The secret will be created/deleted with the Helm release
+  # Set to false if using existingSecret or external secret management
+  create: true
+
+  # Use an existing secret instead of creating one
+  # Useful for:
+  # - External secret management tools (External Secrets Operator, Vault, etc.)
+  # - Shared secrets across multiple releases
+  # - Secrets that should persist beyond the chart lifecycle
+  existingSecret: ""
+
+  # The key within the secret that contains the API key
+  key: "tenx-api-key"
+
+  # Annotations to add to the secret (useful for external secret management)
+  annotations: {}
+    # Example for External Secrets Operator:
+    # external-secrets.io/managed: "true"
 
 ###### Image settings ######
 

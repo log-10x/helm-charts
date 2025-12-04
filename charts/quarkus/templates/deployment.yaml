@@ -39,7 +39,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
-              value: "{{ $.Values.log10xApiKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secret.existingSecret | default (include "log10x-quarkus.fullname" .) }}
+                  key: {{ .Values.secret.key | default "tenx-api-key" }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
@@ -120,7 +123,10 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
-              value: "{{ $.Values.log10xApiKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.secret.existingSecret | default (include "log10x-quarkus.fullname" $) }}
+                  key: {{ $.Values.secret.key | default "tenx-api-key" }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.workers.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
