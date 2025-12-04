@@ -32,8 +32,12 @@ spec:
           securityContext:
             {{- toYaml .securityContext | nindent 12 }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
-          {{- if $tenxGHInit }}
+          {{- if or $tenxGHInit .initContainers }}
           initContainers:
+          {{- with .initContainers }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $tenxGHInit }}
             - name: tenx-git-config
               image: ghcr.io/log-10x/github-config-fetcher:0.2.0
               args:

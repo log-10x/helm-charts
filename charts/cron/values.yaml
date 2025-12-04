@@ -74,6 +74,43 @@ jobs:
     #   - name: MY_VAR
     #     value: "SOME_VALUE"
 
+    # Custom init containers to run before the main container
+    # Useful for downloading files from S3, preparing data, etc.
+    initContainers: []
+    #   - name: s3-downloader
+    #     image: amazon/aws-cli:latest
+    #     command:
+    #       - sh
+    #       - -c
+    #       - |
+    #         aws s3 sync s3://my-bucket/path /data
+    #     env:
+    #       - name: AWS_ACCESS_KEY_ID
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: access-key-id
+    #       - name: AWS_SECRET_ACCESS_KEY
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: secret-access-key
+    #       - name: AWS_REGION
+    #         value: "us-east-1"
+    #     volumeMounts:
+    #       - name: s3-data
+    #         mountPath: /data
+
+    # Volume mounts for the main container
+    volumeMounts: []
+    #   - name: s3-data
+    #     mountPath: /data
+
+    # Volumes to attach to the pod
+    volumes: []
+    #   - name: s3-data
+    #     emptyDir: {}
+
     # Optionally add on-the-fly arguments to the 10x pipeline in yaml format.
     # For more details, see http://doc.log10x.com/config/yaml
     configFiles:
