@@ -47,6 +47,8 @@ spec:
               value: "{{ .Values.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.maxQueuedRequests }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ .Values.readinessThresholdPercent }}"
           {{- if and .Values.workers.enabled }}
             - name: TENX_WORKER_NAME
               value: '{{ include "log10x-quarkus.fullname" . }}-worker'
@@ -58,14 +60,18 @@ spec:
             - name: http
               containerPort: {{ .Values.service.containerPort }}
               protocol: TCP
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
@@ -131,6 +137,8 @@ spec:
               value: "{{ .Values.workers.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.workers.maxQueuedRequests }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ .Values.workers.readinessThresholdPercent }}"
             - name: TENX_WORKER_NAME
               value: {{ include "log10x-quarkus.fullname" . }}-worker
           {{- with .Values.workers.extraEnv }}
@@ -140,14 +148,18 @@ spec:
             - name: http
               containerPort: {{ .Values.workers.service.containerPort }}
               protocol: TCP
+          {{- with .Values.workers.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.workers.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.workers.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.workers.resources | nindent 12 }}
       {{- with .Values.workers.nodeSelector }}
