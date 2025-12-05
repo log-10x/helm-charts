@@ -73,6 +73,7 @@ spec:
                 - name: shared-git-volume
                   mountPath: /data
           {{- end }}
+          {{- end }}
           containers:
           - image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
             imagePullPolicy: {{ $.Values.image.pullPolicy }}
