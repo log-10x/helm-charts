@@ -31,6 +31,10 @@ spec:
       serviceAccountName: {{ include "log10x-quarkus.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-quarkus.githubEnabled" . }}
+      initContainers:
+        {{- include "log10x-quarkus.githubInitContainer" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-main
           {{- with .Values.containerSecurityContext }}
@@ -55,6 +59,14 @@ spec:
             - name: TENX_WORKER_NAME
               value: '{{ include "log10x-quarkus.fullname" . }}-worker'
           {{- end }}
+          {{- if and .Values.github .Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and .Values.github .Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
+          {{- end }}
           {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end}}
@@ -76,6 +88,16 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if include "log10x-quarkus.githubEnabled" . }}
+          volumeMounts:
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+      {{- if include "log10x-quarkus.githubEnabled" . }}
+      volumes:
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -123,6 +145,10 @@ spec:
       serviceAccountName: {{ include "log10x-quarkus.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-quarkus.githubEnabled" $ }}
+      initContainers:
+        {{- include "log10x-quarkus.githubInitContainer" $ | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-worker
           {{- with .Values.containerSecurityContext }}
@@ -145,6 +171,14 @@ spec:
               value: "{{ .Values.workers.readinessThresholdPercent }}"
             - name: TENX_WORKER_NAME
               value: {{ include "log10x-quarkus.fullname" . }}-worker
+          {{- if and $.Values.github $.Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and $.Values.github $.Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
+          {{- end }}
           {{- with .Values.workers.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end}}
@@ -166,6 +200,16 @@ spec:
           {{- end }}
           resources:
             {{- toYaml .Values.workers.resources | nindent 12 }}
+          {{- if include "log10x-quarkus.githubEnabled" $ }}
+          volumeMounts:
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+      {{- if include "log10x-quarkus.githubEnabled" $ }}
+      volumes:
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
       {{- with .Values.workers.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,0 +1,25 @@
+# Test values for CI pipeline with GitHub integration
+# Tests GitHub token validation and git-ops config/symbols fetching
+
+log10xApiKey: "test-api-key-for-ci-testing-only"
+githubToken: "ghp_test_token_for_ci_testing_only"
+
+github:
+  config:
+    repo: "log-10x/test-config-repo"
+    branch: "main"
+
+  symbols:
+    repo: "log-10x/test-symbols-repo"
+    branch: "main"
+    path: "compiled/symbols"
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

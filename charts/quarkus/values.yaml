@@ -14,6 +14,12 @@ fullnameOverride: ""
 #
 log10xApiKey: ""
 
+# GitHub access token for git-ops config/symbols fetching
+# Used by the github-config-fetcher init container
+# All pods (main and workers) will share the same config/symbols
+#
+githubToken: ""
+
 ###### Secret Management ######
 
 # Secret containing the TENX_API_KEY
@@ -38,6 +44,28 @@ apiKeySecret:
   annotations: {}
     # Example for External Secrets Operator:
     # external-secrets.io/managed: "true"
+
+# GitHub configuration for fetching pipeline config and compiled symbols
+# Each pod runs an init container that clones the repositories to an emptyDir volume
+#
+# Uncomment and configure to enable GitHub integration:
+# github:
+#   config:
+#     # The repo to fetch the config from
+#     repo: "user-name/config-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#
+#   symbols:
+#     # The repo to fetch the symbols from
+#     repo: "user-name/symbols-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#     # Optional - a sub folder inside the repo where symbols were placed.
+#     # If omitted, the entire repo is considered as the symbols path.
+#     path: "tenx/my-app/symbols"
 
 ###### Image settings ######
 
