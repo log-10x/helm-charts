@@ -138,12 +138,13 @@ jobs:
       # choice for the user. This also increases chances charts run on environments with little
       # resources, such as Minikube. If you do want to specify resources, uncomment the following
       # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # The recommended values below are based on the Java application's -Xmx2048M configuration.
       # limits:
-      #   cpu: 100m
-      #   memory: 128Mi
+      #   cpu: 1000m
+      #   memory: 2560Mi  # 2.5GB: 2GB heap + ~512MB overhead for non-heap memory
       # requests:
-      #   cpu: 100m
-      #   memory: 128Mi
+      #   cpu: 500m
+      #   memory: 2048Mi  # 2GB: Matches -Xmx setting for guaranteed heap allocation
 
     # Security context for the pod (applies to all containers)
     podSecurityContext: {}
