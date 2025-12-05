@@ -161,7 +161,23 @@ startupProbe:
   timeoutSeconds: 3
   failureThreshold: 30  # 300s (5 min) maximum startup time
 
-# Allows specifying resources for each pod
+# Resource requests and limits for main deployment pods
+#
+# IMPORTANT: Set these based on your pipeline requirements and workload
+# Each pod can run up to maxParallelRequests (default: 10) concurrent pipelines
+# Consider memory and CPU needs per pipeline when setting limits
+#
+# Example for pipelines needing ~200Mi each with 10 parallel requests:
+# resources:
+#   requests:
+#     cpu: 1000m
+#     memory: 2Gi
+#   limits:
+#     cpu: 2000m
+#     memory: 4Gi
+#
+# Note: CI test values use minimal resources (256Mi-512Mi) only for validation,
+# not representative of production workload requirements
 #
 resources: {}
 
@@ -253,7 +269,8 @@ workers:
     timeoutSeconds: 3
     failureThreshold: 30
 
-  # Allows specifying resources for each pod
+  # Resource requests and limits for worker deployment pods
+  # Same considerations as main deployment - size based on pipeline requirements
   #
   resources: {}
 

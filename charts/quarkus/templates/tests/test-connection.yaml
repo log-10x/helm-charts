@@ -11,7 +11,7 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "log10x-quarkus.fullname" . }}-main:{{ .Values.service.port }}/hello']
+      args: ['-O-', '{{ include "log10x-quarkus.fullname" . }}-main:{{ .Values.service.port }}/q/health/ready']
   restartPolicy: Never
 {{- if and .Values.workers.enabled }}
 ---
@@ -28,6 +28,6 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "log10x-quarkus.fullname" . }}-worker:{{ .Values.service.port }}/hello']
+      args: ['-O-', '{{ include "log10x-quarkus.fullname" . }}-worker:{{ .Values.service.port }}/q/health/ready']
   restartPolicy: Never
 {{- end }}
