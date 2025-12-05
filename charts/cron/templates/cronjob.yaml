@@ -41,11 +41,17 @@ spec:
           {{- end }}
           {{- if $tenxGHInit }}
             - name: tenx-git-config
-              image: ghcr.io/log-10x/github-config-fetcher:0.2.0
+              image: ghcr.io/log-10x/github-config-fetcher:0.4.0
+              env:
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "log10x-cron.fullname" $ }}-github-token
+                      key: token
               args:
                 {{- if .github.config }}
                 - "--config-repo"
-                - "https://{{ .github.config.token }}@github.com/{{ .github.config.repo }}.git"
+                - "https://github.com/{{ .github.config.repo }}.git"
                 {{- if .github.config.branch }}
                 - "--config-branch"
                 - "{{ .github.config.branch }}"
@@ -53,7 +59,7 @@ spec:
                 {{- end }}
                 {{- if .github.symbols }}
                 - "--symbols-repo"
-                - "https://{{ .github.symbols.token }}@github.com/{{ .github.symbols.repo }}.git"
+                - "https://github.com/{{ .github.symbols.repo }}.git"
                 {{- if .github.symbols.branch }}
                 - "--symbols-branch"
                 - "{{ .github.symbols.branch }}"
