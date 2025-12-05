@@ -20,8 +20,23 @@ image:
 #
 imagePullSecrets: []
 
-# API key is added to all pods via environment variable TENX_API_KEY
+# API key for log10x - stored as a Kubernetes secret and injected into all pods
+# via environment variable TENX_API_KEY
 log10xApiKey: "YOUR-API-KEY-HERE"
+
+# API key secret configuration
+apiKeySecret:
+  # If true, create a new secret with the log10xApiKey value above
+  # If false, use an existing secret specified by existingSecret
+  create: true
+
+  # Name of an existing Kubernetes secret to use (only used when create=false)
+  # The secret must contain a key with the API key value
+  existingSecret: ""
+
+  # The key name within the secret that contains the API key
+  # Default is "api-key"
+  secretKey: "api-key"
 
 ###### Jobs ######
 

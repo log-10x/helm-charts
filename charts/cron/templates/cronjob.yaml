@@ -71,7 +71,10 @@ spec:
             name: {{ .name }}
             env:
               - name: TENX_API_KEY
-                value: "{{ $.Values.log10xApiKey }}"
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-cron.fullname" $)) }}
+                    key: {{ $.Values.apiKeySecret.secretKey }}
             {{- if .runtimeName }}
               - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"
