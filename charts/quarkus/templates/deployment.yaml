@@ -31,22 +31,41 @@ spec:
       serviceAccountName: {{ include "log10x-quarkus.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-quarkus.githubEnabled" . }}
+      initContainers:
+        {{- include "log10x-quarkus.githubInitContainer" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-main
+          {{- with .Values.containerSecurityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
-              value: "{{ $.Values.log10xApiKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-quarkus.fullname" .)) }}
+                  key: {{ .Values.apiKeySecret.secretKey }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.maxQueuedRequests }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ .Values.readinessThresholdPercent }}"
           {{- if and .Values.workers.enabled }}
             - name: TENX_WORKER_NAME
               value: '{{ include "log10x-quarkus.fullname" . }}-worker'
+          {{- end }}
+          {{- if and .Values.github .Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and .Values.github .Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
           {{- end }}
           {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
@@ -55,16 +74,30 @@ spec:
             - name: http
               containerPort: {{ .Values.service.containerPort }}
               protocol: TCP
+          {{- with .Values.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if include "log10x-quarkus.githubEnabled" . }}
+          volumeMounts:
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+      {{- if include "log10x-quarkus.githubEnabled" . }}
+      volumes:
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -112,21 +145,40 @@ spec:
       serviceAccountName: {{ include "log10x-quarkus.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-quarkus.githubEnabled" $ }}
+      initContainers:
+        {{- include "log10x-quarkus.githubInitContainer" $ | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}-worker
+          {{- with .Values.containerSecurityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
-              value: "{{ $.Values.log10xApiKey }}"
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-quarkus.fullname" $)) }}
+                  key: {{ $.Values.apiKeySecret.secretKey }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.workers.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
               value: "{{ .Values.workers.maxQueuedRequests }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ .Values.workers.readinessThresholdPercent }}"
             - name: TENX_WORKER_NAME
               value: {{ include "log10x-quarkus.fullname" . }}-worker
+          {{- if and $.Values.github $.Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and $.Values.github $.Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
+          {{- end }}
           {{- with .Values.workers.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end}}
@@ -134,16 +186,30 @@ spec:
             - name: http
               containerPort: {{ .Values.workers.service.containerPort }}
               protocol: TCP
+          {{- with .Values.workers.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.workers.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /hello
-              port: http
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.workers.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.workers.resources | nindent 12 }}
+          {{- if include "log10x-quarkus.githubEnabled" $ }}
+          volumeMounts:
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+      {{- if include "log10x-quarkus.githubEnabled" $ }}
+      volumes:
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
       {{- with .Values.workers.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
