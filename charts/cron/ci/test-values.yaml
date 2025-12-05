@@ -1,0 +1,11 @@
+# Test values for CI pipeline
+# This file provides valid configuration to pass chart validation during testing
+
+log10xApiKey: "test-api-key-for-ci-testing-only"
+
+jobs:
+  - name: test-job
+    schedule: "*/10 * * * *"
+    args:
+      - "run"
+      - "--help"
