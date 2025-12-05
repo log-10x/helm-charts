@@ -1,0 +1,28 @@
+# Test values for CI pipeline with workers
+# Tests worker deployment configuration
+
+log10xApiKey: "test-api-key-for-ci-testing-only"
+
+# NOTE: GitHub integration is not tested in CI because it requires:
+# - Real GitHub repositories
+# - Valid GitHub token
+# The GitHub template rendering is validated by helm lint instead
+
+workers:
+  enabled: true
+  replicaCount: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
