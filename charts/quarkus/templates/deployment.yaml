@@ -33,16 +33,18 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-main
+          {{- with .Values.containerSecurityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.secret.existingSecret | default (include "log10x-quarkus.fullname" .) }}
-                  key: {{ .Values.secret.key | default "tenx-api-key" }}
+                  name: {{ .Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-quarkus.fullname" .)) }}
+                  key: {{ .Values.apiKeySecret.secretKey }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED
@@ -123,16 +125,18 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}-worker
+          {{- with .Values.containerSecurityContext }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: TENX_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ $.Values.secret.existingSecret | default (include "log10x-quarkus.fullname" $) }}
-                  key: {{ $.Values.secret.key | default "tenx-api-key" }}
+                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-quarkus.fullname" $)) }}
+                  key: {{ $.Values.apiKeySecret.secretKey }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ .Values.workers.maxParallelRequests }}"
             - name: TENX_QUARKUS_MAX_QUEUED

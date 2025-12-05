@@ -8,7 +8,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 # API key for Log10x authentication
-# Used when secret.create is true and no existingSecret is specified
+# Used when apiKeySecret.create is true and no existingSecret is specified
 # SECURITY WARNING: Do not commit actual API keys to version control
 # Provide via: --set log10xApiKey="your-key" or separate values file
 #
@@ -18,7 +18,7 @@ log10xApiKey: ""
 
 # Secret containing the TENX_API_KEY
 #
-secret:
+apiKeySecret:
   # Set to true to let the chart manage the secret lifecycle
   # The secret will be created/deleted with the Helm release
   # Set to false if using existingSecret or external secret management
@@ -32,7 +32,7 @@ secret:
   existingSecret: ""
 
   # The key within the secret that contains the API key
-  key: "tenx-api-key"
+  secretKey: "tenx-api-key"
 
   # Annotations to add to the secret (useful for external secret management)
   annotations: {}
@@ -259,16 +259,24 @@ serviceAccount:
 
 podAnnotations: {}
 
+# Pod-level security context
+# Applied to all containers in the pod, controls volume ownership
+#
 podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
   # fsGroup: 2000
+  # runAsNonRoot: true
 
-securityContext: {}
+# Container-level security context
+# Controls capabilities, privilege escalation, and root filesystem
+#
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
+  # readOnlyRootFilesystem: false
   # capabilities:
   #   drop:
   #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
 
 ###### Ingress ######
 
