@@ -20,8 +20,28 @@ image:
 #
 imagePullSecrets: []
 
-# API key is added to all pods via environment variable TENX_API_KEY
+# API key for log10x - stored as a Kubernetes secret and injected into all pods
+# via environment variable TENX_API_KEY
 log10xApiKey: "YOUR-API-KEY-HERE"
+
+# GitHub access token for git-ops config/symbols fetching
+# Stored as a Kubernetes secret and used by jobs that define github configuration
+# Can be left empty if no jobs use github integration
+githubToken: ""
+
+# API key secret configuration
+apiKeySecret:
+  # If true, create a new secret with the log10xApiKey value above
+  # If false, use an existing secret specified by existingSecret
+  create: true
+
+  # Name of an existing Kubernetes secret to use (only used when create=false)
+  # The secret must contain a key with the API key value
+  existingSecret: ""
+
+  # The key name within the secret that contains the API key
+  # Default is "api-key"
+  secretKey: "api-key"
 
 ###### Jobs ######
 
@@ -44,12 +64,11 @@ jobs:
     # Full config via github using git-ops approach (http://doc.log10x.com/concepts/gitops)
     # If defined, will spawn an init container which will pull config/symbols and make it available for the 10x
     # pipeline in place of the config bundled with the container image.
+    # NOTE: GitHub access token is configured at the root level via 'githubToken' field
+    # See: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
     #
     github:
       config:
-        # Access token for GitHub.
-        # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-        token: "MY-TOKEN"
         # The repo to fetch the config from
         repo: "user-name/config-repo"
         # Optional - a branch to pull.
@@ -57,10 +76,7 @@ jobs:
         branch: "main"
 
       symbols:
-        # Access token for GitHub.
-        # To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-        token: "MY-TOKEN"
-        # The repo to fetch the config from
+        # The repo to fetch the symbols from
         repo: "user-name/symbols-repo"
         # Optional - a branch to pull.
         # If omitted, the default repo branch will be used.
@@ -74,6 +90,43 @@ jobs:
     #   - name: MY_VAR
     #     value: "SOME_VALUE"
 
+    # Custom init containers to run before the main container
+    # Useful for downloading files from S3, preparing data, etc.
+    initContainers: []
+    #   - name: s3-downloader
+    #     image: amazon/aws-cli:latest
+    #     command:
+    #       - sh
+    #       - -c
+    #       - |
+    #         aws s3 sync s3://my-bucket/path /data
+    #     env:
+    #       - name: AWS_ACCESS_KEY_ID
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: access-key-id
+    #       - name: AWS_SECRET_ACCESS_KEY
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: secret-access-key
+    #       - name: AWS_REGION
+    #         value: "us-east-1"
+    #     volumeMounts:
+    #       - name: s3-data
+    #         mountPath: /data
+
+    # Volume mounts for the main container
+    volumeMounts: []
+    #   - name: s3-data
+    #     mountPath: /data
+
+    # Volumes to attach to the pod
+    volumes: []
+    #   - name: s3-data
+    #     emptyDir: {}
+
     # Optionally add on-the-fly arguments to the 10x pipeline in yaml format.
     # For more details, see http://doc.log10x.com/config/yaml
     configFiles:
@@ -86,19 +139,29 @@ jobs:
       # choice for the user. This also increases chances charts run on environments with little
       # resources, such as Minikube. If you do want to specify resources, uncomment the following
       # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # The recommended values below are based on the Java application's -Xmx2048M configuration.
       # limits:
-      #   cpu: 100m
-      #   memory: 128Mi
+      #   cpu: 1000m
+      #   memory: 2560Mi  # 2.5GB: 2GB heap + ~512MB overhead for non-heap memory
       # requests:
-      #   cpu: 100m
-      #   memory: 128Mi
-    securityContext: {}
+      #   cpu: 500m
+      #   memory: 2048Mi  # 2GB: Matches -Xmx setting for guaranteed heap allocation
+
+    # Security context for the pod (applies to all containers)
+    podSecurityContext: {}
+      # fsGroup: 2000
+      # runAsNonRoot: true
+      # runAsUser: 1000
+
+    # Security context for the container
+    containerSecurityContext: {}
       # capabilities:
       #   drop:
       #   - ALL
       # readOnlyRootFilesystem: true
       # runAsNonRoot: true
       # runAsUser: 1000
+      # allowPrivilegeEscalation: false
     nodeSelector: {}
     tolerations: []
     affinity: {}

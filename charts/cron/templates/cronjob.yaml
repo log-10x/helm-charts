@@ -29,17 +29,29 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           serviceAccountName: {{ include "log10x-cron.serviceAccountName" $ }}
+          {{- with .podSecurityContext }}
           securityContext:
-            {{- toYaml .securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
-          {{- if $tenxGHInit }}
+          {{- if or $tenxGHInit .initContainers }}
           initContainers:
+          {{- with .initContainers }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $tenxGHInit }}
             - name: tenx-git-config
-              image: ghcr.io/log-10x/github-config-fetcher:0.2.0
+              image: ghcr.io/log-10x/github-config-fetcher:0.4.0
+              env:
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "log10x-cron.fullname" $ }}-github-token
+                      key: token
               args:
                 {{- if .github.config }}
                 - "--config-repo"
-                - "https://{{ .github.config.token }}@github.com/{{ .github.config.repo }}.git"
+                - "https://github.com/{{ .github.config.repo }}.git"
                 {{- if .github.config.branch }}
                 - "--config-branch"
                 - "{{ .github.config.branch }}"
@@ -47,7 +59,7 @@ spec:
                 {{- end }}
                 {{- if .github.symbols }}
                 - "--symbols-repo"
-                - "https://{{ .github.symbols.token }}@github.com/{{ .github.symbols.repo }}.git"
+                - "https://github.com/{{ .github.symbols.repo }}.git"
                 {{- if .github.symbols.branch }}
                 - "--symbols-branch"
                 - "{{ .github.symbols.branch }}"
@@ -61,13 +73,17 @@ spec:
                 - name: shared-git-volume
                   mountPath: /data
           {{- end }}
+          {{- end }}
           containers:
           - image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
             imagePullPolicy: {{ $.Values.image.pullPolicy }}
             name: {{ .name }}
             env:
               - name: TENX_API_KEY
-                value: "{{ $.Values.log10xApiKey }}"
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-cron.fullname" $)) }}
+                    key: {{ $.Values.apiKeySecret.secretKey }}
             {{- if .runtimeName }}
               - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"
@@ -94,6 +110,10 @@ spec:
             {{- end }}
             {{- with .resources }}
             resources:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .containerSecurityContext }}
+            securityContext:
               {{- toYaml . | nindent 14 }}
             {{- end }}
             {{- if or $tenxGHInit .volumeMounts $hasConfigFiles }}

@@ -21,3 +21,5 @@
 .idea/
 *.tmproj
 .vscode/
+# CI test values (used by chart-testing, not for end users)
+ci/
