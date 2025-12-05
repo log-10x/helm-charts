@@ -7,4 +7,4 @@ maintainers:
 name: quarkus-10x
 type: application
 version: 0.5.8
-appVersion: 0.30.6
+appVersion: 0.30.7
