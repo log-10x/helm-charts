@@ -29,8 +29,10 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           serviceAccountName: {{ include "log10x-cron.serviceAccountName" $ }}
+          {{- with .podSecurityContext }}
           securityContext:
-            {{- toYaml .securityContext | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
           {{- if or $tenxGHInit .initContainers }}
           initContainers:
@@ -101,6 +103,10 @@ spec:
             {{- end }}
             {{- with .resources }}
             resources:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .containerSecurityContext }}
+            securityContext:
               {{- toYaml . | nindent 14 }}
             {{- end }}
             {{- if or $tenxGHInit .volumeMounts $hasConfigFiles }}

@@ -144,13 +144,22 @@ jobs:
       # requests:
       #   cpu: 100m
       #   memory: 128Mi
-    securityContext: {}
+
+    # Security context for the pod (applies to all containers)
+    podSecurityContext: {}
+      # fsGroup: 2000
+      # runAsNonRoot: true
+      # runAsUser: 1000
+
+    # Security context for the container
+    containerSecurityContext: {}
       # capabilities:
       #   drop:
       #   - ALL
       # readOnlyRootFilesystem: true
       # runAsNonRoot: true
       # runAsUser: 1000
+      # allowPrivilegeEscalation: false
     nodeSelector: {}
     tolerations: []
     affinity: {}
