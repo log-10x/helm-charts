@@ -6,5 +6,5 @@ maintainers:
     name: dor-levi
 name: quarkus-10x
 type: application
-version: 0.5.8
-appVersion: 0.30.7
+version: 0.5.9
+appVersion: 0.31.0
