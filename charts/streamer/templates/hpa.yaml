@@ -1,5 +1,5 @@
 {{- range $index, $cluster := .Values.clusters }}
-{{- if $cluster.autoscaling.enabled }}
+{{- if and $cluster.autoscaling $cluster.autoscaling.enabled }}
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
