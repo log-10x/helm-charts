@@ -1,0 +1,269 @@
+# Default values for log10x-streamer.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Allows overriding base names
+#
+nameOverride: ""
+fullnameOverride: ""
+
+# API key for Log10x authentication
+# Used when apiKeySecret.create is true and no existingSecret is specified
+# SECURITY WARNING: Do not commit actual API keys to version control
+# Provide via: --set log10xApiKey="your-key" or separate values file
+#
+log10xApiKey: ""
+
+# GitHub access token for git-ops config/symbols fetching
+# Used by the github-config-fetcher init container
+# All pods will share the same config/symbols
+#
+githubToken: ""
+
+###### Secret Management ######
+
+# Secret containing the TENX_API_KEY
+#
+apiKeySecret:
+  # Set to true to let the chart manage the secret lifecycle
+  # The secret will be created/deleted with the Helm release
+  # Set to false if using existingSecret or external secret management
+  create: true
+
+  # Use an existing secret instead of creating one
+  # Useful for:
+  # - External secret management tools (External Secrets Operator, Vault, etc.)
+  # - Shared secrets across multiple releases
+  # - Secrets that should persist beyond the chart lifecycle
+  existingSecret: ""
+
+  # The key within the secret that contains the API key
+  secretKey: "tenx-api-key"
+
+  # Annotations to add to the secret (useful for external secret management)
+  annotations: {}
+    # Example for External Secrets Operator:
+    # external-secrets.io/managed: "true"
+
+# GitHub configuration for fetching pipeline config and compiled symbols
+# Each pod runs an init container that clones the repositories to an emptyDir volume
+#
+# Uncomment and configure to enable GitHub integration:
+# github:
+#   config:
+#     # The repo to fetch the config from
+#     repo: "user-name/config-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#
+#   symbols:
+#     # The repo to fetch the symbols from
+#     repo: "user-name/symbols-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#     # Optional - a sub folder inside the repo where symbols were placed.
+#     # If omitted, the entire repo is considered as the symbols path.
+#     path: "tenx/my-app/symbols"
+
+###### Image settings ######
+
+image:
+  repository: ghcr.io/log-10x/quarkus-10x
+  # pullPolicy: Always recommended for production to prevent version skew
+  # Use IfNotPresent for development to speed up deployments
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# When replacing the image to your own custom one, allows for setting
+# secrets to allow pull access.
+#
+imagePullSecrets: []
+
+###### Cluster Configuration ######
+
+# Clusters define independent deployments with specific roles
+# Each cluster can handle one or more roles (index, query, pipeline)
+# A cluster will only process tasks for roles that are configured with queue URLs
+#
+# Default: Single cluster handling all three roles
+#
+clusters:
+  - name: all-in-one
+    # Index role configuration
+    # When configured, this cluster will handle indexing requests
+    # index:
+    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-index-queue"
+    #   # Optional: Where to write indexing results
+    #   # If not specified, defaults to behavior in IndexSqsConsumer
+    #   writeContainer: "my-bucket/indexed/"
+
+    # Query role configuration
+    # When configured, this cluster will handle query requests
+    # query:
+    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-query-queue"
+    #   # Optional: Pipeline queue URL for invoking pipeline tasks from queries
+    #   # If not specified, uses pipeline.queueUrl from this cluster (if available)
+    #   pipelineUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-pipeline-queue"
+
+    # Pipeline role configuration
+    # When configured, this cluster will handle pipeline execution requests
+    # pipeline:
+    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-pipeline-queue"
+
+    # Static replica count (not used if autoscaling.enabled is true)
+    replicaCount: 1
+
+    # Sets the maximum number of parallel pipelines each pod can execute
+    # Environment variable: TENX_QUARKUS_MAX_ASYNC
+    maxParallelRequests: 10
+
+    # Sets the maximum number of queued pipeline requests each pod can hold
+    # Environment variable: TENX_QUARKUS_MAX_QUEUED
+    maxQueuedRequests: 1000
+
+    # Load-based readiness threshold (0-100)
+    # When (activeTasks + queuedTasks) exceeds this percentage of total capacity,
+    # the pod will be marked NOT READY for health checks.
+    # Environment variable: TENX_QUARKUS_READINESS_THRESHOLD
+    readinessThresholdPercent: 90
+
+    # Additional environment variables specific to this cluster
+    extraEnv: []
+      # - name: CUSTOM_VAR
+      #   value: "custom-value"
+
+    # Health probe configuration
+    # Quarkus provides built-in health endpoints at /q/health/*
+    livenessProbe:
+      httpGet:
+        path: /q/health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /q/health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+    startupProbe:
+      httpGet:
+        path: /q/health/started
+        port: http
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 30  # 300s (5 min) maximum startup time
+
+    # Resource requests and limits
+    # IMPORTANT: Set these based on your pipeline requirements
+    # Index operations typically require more resources than query/pipeline
+    resources: {}
+      # requests:
+      #   cpu: 1000m
+      #   memory: 2Gi
+      # limits:
+      #   cpu: 2000m
+      #   memory: 4Gi
+
+    # Autoscaling configuration via HorizontalPodAutoscaler
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+# Example: Three separate clusters for production
+#
+# clusters:
+#   - name: indexer
+#     index:
+#       queueUrl: "https://sqs.../index-queue"
+#       writeContainer: "results-bucket/indexed/"
+#     replicaCount: 2
+#     maxParallelRequests: 5  # Indexing is resource-intensive
+#     resources:
+#       requests:
+#         cpu: 2000m
+#         memory: 4Gi
+#       limits:
+#         cpu: 4000m
+#         memory: 8Gi
+#
+#   - name: query-handler
+#     query:
+#       queueUrl: "https://sqs.../query-queue"
+#       pipelineUrl: "https://sqs.../pipeline-queue"
+#     replicaCount: 5
+#     maxParallelRequests: 20
+#     resources:
+#       requests:
+#         cpu: 1000m
+#         memory: 2Gi
+#
+#   - name: pipeline-worker
+#     pipeline:
+#       queueUrl: "https://sqs.../pipeline-queue"
+#     replicaCount: 10
+#     maxParallelRequests: 15
+#     resources:
+#       requests:
+#         cpu: 1000m
+#         memory: 2Gi
+
+###### Service Configuration ######
+
+# Service for health check endpoints only
+# No external traffic routing needed for SQS-based processing
+service:
+  type: ClusterIP
+  port: 80
+  containerPort: 8080
+
+###### Service Account ######
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  # Useful for IAM role association (e.g., AWS IRSA)
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/ROLE_NAME
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+###### Annotations and Security ######
+
+podAnnotations: {}
+
+# Pod-level security context
+# Applied to all containers in the pod, controls volume ownership
+podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
+  # fsGroup: 2000
+  # runAsNonRoot: true
+
+# Container-level security context
+# Controls capabilities, privilege escalation, and root filesystem
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
+  # readOnlyRootFilesystem: false
+  # capabilities:
+  #   drop:
+  #   - ALL

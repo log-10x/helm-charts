@@ -1,0 +1,31 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+The following clusters have been deployed:
+{{- range $index, $cluster := .Values.clusters }}
+{{- $replicas := $cluster.replicaCount | default 1 | int }}
+  - {{ $cluster.name }} ({{ $replicas }} replica{{ if ne $replicas 1 }}s{{ end }})
+    {{- if $cluster.index }}
+    * Index: {{ if $cluster.index.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- end }}
+    {{- if $cluster.query }}
+    * Query: {{ if $cluster.query.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- end }}
+    {{- if $cluster.pipeline }}
+    * Pipeline: {{ if $cluster.pipeline.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- end }}
+{{- end }}
+
+To check the status of your deployments:
+  kubectl get deployments -l app={{ include "log10x-streamer.name" . }}
+
+To view the logs:
+{{- range $index, $cluster := .Values.clusters }}
+  kubectl logs -l cluster={{ $cluster.name }} --tail=100 -f
+{{- end }}
+
+To check pod health:
+  kubectl get pods -l app={{ include "log10x-streamer.name" . }}
+
+For more information, visit: https://github.com/log-10x/helm-charts

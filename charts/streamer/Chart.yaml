@@ -1,0 +1,10 @@
+apiVersion: v2
+description: Official Log10x helm chart for SQS-based Cloud Streamer Quarkus deployment
+home: https://github.com/log-10x/helm-charts
+maintainers:
+  - email: dor.levi@log10x.com
+    name: dor-levi
+name: streamer-10x
+type: application
+version: 0.1.0
+appVersion: 0.31.2
