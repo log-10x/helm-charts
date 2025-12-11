@@ -1,0 +1,112 @@
+{{- range $index, $cluster := .Values.clusters }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    app: {{ include "log10x-streamer.name" $ }}
+    cluster: {{ $cluster.name }}
+spec:
+  {{- if not $cluster.autoscaling.enabled }}
+  replicas: {{ $cluster.replicaCount | default 1 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "log10x-streamer.name" $ }}
+      cluster: {{ $cluster.name }}
+  template:
+    metadata:
+      {{- with $.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "log10x-streamer.name" $ }}
+        cluster: {{ $cluster.name }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-streamer.githubEnabled" $ }}
+      initContainers:
+        {{- include "log10x-streamer.githubInitContainer" $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $.Chart.Name }}-{{ $cluster.name }}
+          {{- with $.Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          env:
+            - name: TENX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-streamer.fullname" $)) }}
+                  key: {{ $.Values.apiKeySecret.secretKey }}
+            - name: TENX_QUARKUS_MAX_ASYNC
+              value: "{{ $cluster.maxParallelRequests | default 10 }}"
+            - name: TENX_QUARKUS_MAX_QUEUED
+              value: "{{ $cluster.maxQueuedRequests | default 1000 }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ $cluster.readinessThresholdPercent | default 90 }}"
+          {{- if and $.Values.github $.Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and $.Values.github $.Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
+          {{- end }}
+          {{- include "log10x-streamer.roleEnvVars" $cluster | nindent 12 }}
+          {{- with $cluster.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end}}
+          ports:
+            - name: http
+              containerPort: {{ $.Values.service.containerPort }}
+              protocol: TCP
+          {{- with $cluster.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cluster.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cluster.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $cluster.resources | nindent 12 }}
+          {{- if include "log10x-streamer.githubEnabled" $ }}
+          volumeMounts:
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+      {{- if include "log10x-streamer.githubEnabled" $ }}
+      volumes:
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
+      {{- with $cluster.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $cluster.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $cluster.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

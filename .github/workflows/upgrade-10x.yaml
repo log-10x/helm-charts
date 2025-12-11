@@ -21,6 +21,7 @@ env:
   CHART_FILES: |
     charts/cron/Chart.yaml
     charts/quarkus/Chart.yaml
+    charts/streamer/Chart.yaml
 
 jobs:
   upgrade:
