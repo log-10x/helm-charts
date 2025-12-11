@@ -6,21 +6,21 @@
 ## Add the 10x Helm repository
 
 ```sh
-helm repo add log10x https://log-10x.github.io/helm-charts
+helm repo add log-10x https://log-10x.github.io/helm-charts
 ```
 
-## Install 10x Quarkus
+## Install 10x Cloud Streamer
 
 ```sh
-helm upgrade -i quarkus-10x log10x/quarkus-10x
+helm upgrade -i cloud-streamer log-10x/streamer-10x
 ```
 
-For more details on deploying the Quarkus 10x server please see the [documentation](http://doc.log10x.com/apps/cloud/streamer/deploy).
+For more details on deploying the Cloud Streamer 10x app please see the [documentation](http://doc.log10x.com/apps/cloud/streamer/deploy).
 
 ## Install 10x Cron Jobs
 
 ```sh
-helm upgrade -i log10x-jobs log10x/cron-10x
+helm upgrade -i log10x-jobs log-10x/cron-10x
 ```
 
 For more details on installing 10x Cron Jobs please see the [documentation](http://doc.log10x.com/apps/cloud/reporter/deploy).
