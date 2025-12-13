@@ -112,10 +112,6 @@ Takes a cluster object as context and generates env vars based on configured rol
 - name: TENX_QUARKUS_SQS_INDEX_QUEUE_URL
   value: {{ $cluster.index.queueUrl | quote }}
 {{- end }}
-{{- if $cluster.index.writeContainer }}
-- name: TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
-  value: {{ $cluster.index.writeContainer | quote }}
-{{- end }}
 {{- end }}
 {{- if $cluster.query }}
 {{- if $cluster.query.queueUrl }}

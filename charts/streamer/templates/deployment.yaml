@@ -57,6 +57,18 @@ spec:
               value: "{{ $cluster.maxQueuedRequests | default 1000 }}"
             - name: TENX_QUARKUS_READINESS_THRESHOLD
               value: "{{ $cluster.readinessThresholdPercent | default 90 }}"
+          {{- if $.Values.inputBucket }}
+            - name: TENX_STREAMER_INPUT_BUCKET
+              value: {{ $.Values.inputBucket | quote }}
+          {{- end }}
+          {{- if $.Values.indexBucket }}
+            - name: TENX_STREAMER_INDEX_BUCKET
+              value: {{ $.Values.indexBucket | quote }}
+          {{- end }}
+          {{- if and $cluster.index $.Values.indexBucket }}
+            - name: TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
+              value: {{ $.Values.indexBucket | quote }}
+          {{- end }}
           {{- if and $.Values.github $.Values.github.config }}
             - name: TENX_CONFIG
               value: "/data/config"

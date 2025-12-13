@@ -67,6 +67,19 @@ apiKeySecret:
 #     # If omitted, the entire repo is considered as the symbols path.
 #     path: "tenx/my-app/symbols"
 
+###### S3 Bucket Configuration ######
+
+# S3 bucket for input data (source logs)
+# Environment variable: TENX_STREAMER_INPUT_BUCKET
+# Used by all roles to read source data
+inputBucket: ""
+
+# S3 bucket path for indexed results
+# Environment variable: TENX_STREAMER_INDEX_BUCKET
+# Used by all roles; index role also writes to TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
+# Example: "my-bucket/indexed/"
+indexBucket: ""
+
 ###### Image settings ######
 
 image:
@@ -96,9 +109,6 @@ clusters:
     # When configured, this cluster will handle indexing requests
     # index:
     #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-index-queue"
-    #   # Optional: Where to write indexing results
-    #   # If not specified, defaults to behavior in IndexSqsConsumer
-    #   writeContainer: "my-bucket/indexed/"
 
     # Query role configuration
     # When configured, this cluster will handle query requests
@@ -193,7 +203,6 @@ clusters:
 #   - name: indexer
 #     index:
 #       queueUrl: "https://sqs.../index-queue"
-#       writeContainer: "results-bucket/indexed/"
 #     replicaCount: 2
 #     maxParallelRequests: 5  # Indexing is resource-intensive
 #     resources:
