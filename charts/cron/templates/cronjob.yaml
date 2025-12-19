@@ -41,7 +41,8 @@ spec:
           {{- end }}
           {{- if $tenxGHInit }}
             - name: tenx-git-config
-              image: ghcr.io/log-10x/github-config-fetcher:0.5.0
+              image: "{{ $.Values.githubConfigFetcherImage.repository }}:{{ $.Values.githubConfigFetcherImage.tag }}"
+              imagePullPolicy: {{ $.Values.githubConfigFetcherImage.pullPolicy }}
               env:
                 - name: GITHUB_TOKEN
                   valueFrom:
