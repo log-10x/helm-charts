@@ -71,14 +71,32 @@ apiKeySecret:
 
 # S3 bucket for input data (source logs)
 # Environment variable: TENX_STREAMER_INPUT_BUCKET
-# Used by all roles to read source data
+# Used by all clusters to read source data
 inputBucket: ""
 
 # S3 bucket path for indexed results
 # Environment variable: TENX_STREAMER_INDEX_BUCKET
-# Used by all roles; index role also writes to TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
+# Used by all clusters; index role also writes to TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
 # Example: "my-bucket/indexed/"
 indexBucket: ""
+
+###### SQS Queue Configuration ######
+
+# SQS queue URL for index operations
+# Environment variable: TENX_QUARKUS_SQS_INDEX_QUEUE_URL (for index role)
+# Applied to clusters with "index" in their roles array
+indexQueueUrl: ""
+
+# SQS queue URL for query operations
+# Environment variable: TENX_QUARKUS_SQS_QUERY_QUEUE_URL (for query role)
+# Applied to clusters with "query" in their roles array
+queryQueueUrl: ""
+
+# SQS queue URL for pipeline operations
+# Environment variable: TENX_QUARKUS_SQS_PIPELINE_QUEUE_URL (for pipeline role)
+# Environment variable: TENX_INVOKE_PIPELINE_ENDPOINT (for query and pipeline roles)
+# Applied to clusters with "pipeline" or "query" in their roles array
+pipelineQueueUrl: ""
 
 ###### Image settings ######
 
@@ -99,29 +117,17 @@ imagePullSecrets: []
 
 # Clusters define independent deployments with specific roles
 # Each cluster can handle one or more roles (index, query, pipeline)
-# A cluster will only process tasks for roles that are configured with queue URLs
+# Roles are assigned via the "roles" array, and appropriate environment variables
+# are set based on the global queue URLs defined above
 #
-# Default: Single cluster handling all three roles
+# Default: Single cluster with no roles assigned (configure roles as needed)
 #
 clusters:
   - name: all-in-one
-    # Index role configuration
-    # When configured, this cluster will handle indexing requests
-    # index:
-    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-index-queue"
-
-    # Query role configuration
-    # When configured, this cluster will handle query requests
-    # query:
-    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-query-queue"
-    #   # Optional: Pipeline queue URL for invoking pipeline tasks from queries
-    #   # If not specified, uses pipeline.queueUrl from this cluster (if available)
-    #   pipelineUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-pipeline-queue"
-
-    # Pipeline role configuration
-    # When configured, this cluster will handle pipeline execution requests
-    # pipeline:
-    #   queueUrl: "https://sqs.us-west-2.amazonaws.com/123456789012/my-pipeline-queue"
+    # Roles this cluster should handle
+    # Available roles: "index", "query", "pipeline"
+    # Example: roles: ["index", "query", "pipeline"]
+    roles: []
 
     # Static replica count (not used if autoscaling.enabled is true)
     replicaCount: 1
@@ -198,11 +204,14 @@ clusters:
     affinity: {}
 
 # Example: Three separate clusters for production
+# Configure global queue URLs at the top of this file:
+#   indexQueueUrl: "https://sqs.../index-queue"
+#   queryQueueUrl: "https://sqs.../query-queue"
+#   pipelineQueueUrl: "https://sqs.../pipeline-queue"
 #
 # clusters:
 #   - name: indexer
-#     index:
-#       queueUrl: "https://sqs.../index-queue"
+#     roles: ["index"]
 #     replicaCount: 2
 #     maxParallelRequests: 5  # Indexing is resource-intensive
 #     resources:
@@ -214,9 +223,7 @@ clusters:
 #         memory: 8Gi
 #
 #   - name: query-handler
-#     query:
-#       queueUrl: "https://sqs.../query-queue"
-#       pipelineUrl: "https://sqs.../pipeline-queue"
+#     roles: ["query"]
 #     replicaCount: 5
 #     maxParallelRequests: 20
 #     resources:
@@ -225,8 +232,7 @@ clusters:
 #         memory: 2Gi
 #
 #   - name: pipeline-worker
-#     pipeline:
-#       queueUrl: "https://sqs.../pipeline-queue"
+#     roles: ["pipeline"]
 #     replicaCount: 10
 #     maxParallelRequests: 15
 #     resources:

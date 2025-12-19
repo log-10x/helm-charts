@@ -103,38 +103,29 @@ Clones config and/or symbols repositories to an emptyDir volume
 
 {{/*
 Generate environment variables for cluster roles
-Takes a cluster object as context and generates env vars based on configured roles (index/query/pipeline)
+Takes a dict with keys: cluster (cluster object), values (root values object)
+Generates env vars based on roles array and global queue URLs
 */}}
 {{- define "log10x-streamer.roleEnvVars" -}}
-{{- $cluster := . -}}
-{{- if $cluster.index }}
-{{- if $cluster.index.queueUrl }}
+{{- $cluster := .cluster -}}
+{{- $values := .values -}}
+{{- $hasIndex := has "index" $cluster.roles -}}
+{{- $hasQuery := has "query" $cluster.roles -}}
+{{- $hasPipeline := has "pipeline" $cluster.roles -}}
+{{- if and $hasIndex $values.indexQueueUrl }}
 - name: TENX_QUARKUS_SQS_INDEX_QUEUE_URL
-  value: {{ $cluster.index.queueUrl | quote }}
+  value: {{ $values.indexQueueUrl | quote }}
 {{- end }}
-{{- end }}
-{{- if $cluster.query }}
-{{- if $cluster.query.queueUrl }}
+{{- if and $hasQuery $values.queryQueueUrl }}
 - name: TENX_QUARKUS_SQS_QUERY_QUEUE_URL
-  value: {{ $cluster.query.queueUrl | quote }}
+  value: {{ $values.queryQueueUrl | quote }}
 {{- end }}
-{{- end }}
-{{- if $cluster.pipeline }}
-{{- if $cluster.pipeline.queueUrl }}
+{{- if and $hasPipeline $values.pipelineQueueUrl }}
 - name: TENX_QUARKUS_SQS_PIPELINE_QUEUE_URL
-  value: {{ $cluster.pipeline.queueUrl | quote }}
+  value: {{ $values.pipelineQueueUrl | quote }}
 {{- end }}
-{{- end }}
-{{- if or $cluster.query $cluster.pipeline }}
-{{- $pipelineUrl := "" }}
-{{- if and $cluster.query $cluster.query.pipelineUrl }}
-{{- $pipelineUrl = $cluster.query.pipelineUrl }}
-{{- else if and $cluster.pipeline $cluster.pipeline.queueUrl }}
-{{- $pipelineUrl = $cluster.pipeline.queueUrl }}
-{{- end }}
-{{- if $pipelineUrl }}
+{{- if and (or $hasQuery $hasPipeline) $values.pipelineQueueUrl }}
 - name: TENX_INVOKE_PIPELINE_ENDPOINT
-  value: {{ $pipelineUrl | quote }}
-{{- end }}
+  value: {{ $values.pipelineQueueUrl | quote }}
 {{- end }}
 {{- end -}}

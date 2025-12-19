@@ -65,7 +65,7 @@ spec:
             - name: TENX_STREAMER_INDEX_BUCKET
               value: {{ $.Values.indexBucket | quote }}
           {{- end }}
-          {{- if and $cluster.index $.Values.indexBucket }}
+          {{- if and (has "index" $cluster.roles) $.Values.indexBucket }}
             - name: TENX_QUARKUS_SQS_INDEX_WRITE_CONTAINER
               value: {{ $.Values.indexBucket | quote }}
           {{- end }}
@@ -77,7 +77,7 @@ spec:
             - name: TENX_SYMBOLS_PATH
               value: "/data/config/data/shared/symbols"
           {{- end }}
-          {{- include "log10x-streamer.roleEnvVars" $cluster | nindent 12 }}
+          {{- include "log10x-streamer.roleEnvVars" (dict "cluster" $cluster "values" $.Values) | nindent 12 }}
           {{- with $cluster.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end}}
