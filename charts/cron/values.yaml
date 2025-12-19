@@ -15,6 +15,15 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
+# GitHub config fetcher init container image
+# Used to clone config/symbols repositories when github integration is enabled
+# Most users will not need to modify these values
+#
+githubConfigFetcherImage:
+  repository: ghcr.io/log-10x/github-config-fetcher
+  tag: "0.5.1"
+  pullPolicy: Always
+
 # When replacing the image to your own custom one, allows for setting
 # secrets to allow pull access.
 #

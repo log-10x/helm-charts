@@ -68,7 +68,8 @@ Clones config and/or symbols repositories to an emptyDir volume
 */}}
 {{- define "log10x-streamer.githubInitContainer" -}}
 - name: github-clone
-  image: ghcr.io/log-10x/github-config-fetcher:0.5.0
+  image: "{{ .Values.githubConfigFetcherImage.repository }}:{{ .Values.githubConfigFetcherImage.tag }}"
+  imagePullPolicy: {{ .Values.githubConfigFetcherImage.pullPolicy }}
   env:
     - name: GITHUB_TOKEN
       valueFrom:
