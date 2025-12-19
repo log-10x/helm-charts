@@ -129,14 +129,13 @@ imagePullSecrets: []
 # Roles are assigned via the "roles" array, and appropriate environment variables
 # are set based on the global queue URLs defined above
 #
-# Default: Single cluster with no roles assigned (configure roles as needed)
+# Default: Single all-in-one cluster handling all three roles
 #
 clusters:
   - name: all-in-one
     # Roles this cluster should handle
     # Available roles: "index", "query", "pipeline"
-    # Example: roles: ["index", "query", "pipeline"]
-    roles: []
+    roles: ["index", "query", "pipeline"]
 
     # Static replica count (not used if autoscaling.enabled is true)
     replicaCount: 1
