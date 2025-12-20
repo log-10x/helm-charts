@@ -2,6 +2,20 @@ apiVersion: v1
 entries:
   cron-10x:
   - apiVersion: v2
+    appVersion: 0.32.0
+    created: "2025-12-20T17:13:08.633996807Z"
+    description: Official Log10x helm chart for executing periodic Log10x pipelines
+    digest: 4f044d07e1c5dcf315dc9c94c5de7487cffdc3fdfc584017343fc4104d837997
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: cron-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/cron-10x-0.5.24/cron-10x-0.5.24.tgz
+    version: 0.5.24
+  - apiVersion: v2
     appVersion: 0.31.12
     created: "2025-12-19T22:45:58.589190376Z"
     description: Official Log10x helm chart for executing periodic Log10x pipelines
@@ -353,6 +367,20 @@ entries:
     version: 0.4.0
   streamer-10x:
   - apiVersion: v2
+    appVersion: 0.32.0
+    created: "2025-12-20T17:13:08.779900385Z"
+    description: Official Log10x helm chart for SQS-based Cloud Streamer Quarkus deployment
+    digest: 0ea53a1d84dcb6f8f168f12612864ae807b4324fb7f1ee61519a03b404e17d2b
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: streamer-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.2.3/streamer-10x-0.2.3.tgz
+    version: 0.2.3
+  - apiVersion: v2
     appVersion: 0.31.12
     created: "2025-12-19T22:45:58.759050905Z"
     description: Official Log10x helm chart for SQS-based Cloud Streamer Quarkus deployment
@@ -548,4 +576,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.1.0/streamer-10x-0.1.0.tgz
     version: 0.1.0
-generated: "2025-12-19T22:45:58.759402419Z"
+generated: "2025-12-20T17:13:08.780150393Z"
