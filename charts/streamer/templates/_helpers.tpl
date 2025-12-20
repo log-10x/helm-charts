@@ -114,15 +114,15 @@ Generates env vars based on roles array and global queue URLs
 {{- $hasQuery := has "query" $cluster.roles -}}
 {{- $hasPipeline := has "pipeline" $cluster.roles -}}
 {{- if and $hasIndex $values.indexQueueUrl }}
-- name: TENX_QUARKUS_SQS_INDEX_QUEUE_URL
+- name: TENX_QUARKUS_INDEX_QUEUE_URL
   value: {{ $values.indexQueueUrl | quote }}
 {{- end }}
 {{- if and $hasQuery $values.queryQueueUrl }}
-- name: TENX_QUARKUS_SQS_QUERY_QUEUE_URL
+- name: TENX_QUARKUS_QUERY_QUEUE_URL
   value: {{ $values.queryQueueUrl | quote }}
 {{- end }}
 {{- if and $hasPipeline $values.pipelineQueueUrl }}
-- name: TENX_QUARKUS_SQS_PIPELINE_QUEUE_URL
+- name: TENX_QUARKUS_PIPELINE_QUEUE_URL
   value: {{ $values.pipelineQueueUrl | quote }}
 {{- end }}
 {{- if and (or $hasQuery $hasPipeline) $values.pipelineQueueUrl }}
