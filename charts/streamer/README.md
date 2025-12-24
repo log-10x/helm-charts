@@ -4,10 +4,10 @@ Official Helm chart for deploying SQS-based Log10x pipeline streaming clusters o
 
 ## Overview
 
-This chart deploys one or more **cluster deployments** with specific roles for processing pipeline tasks. Each cluster can handle one or more roles:
+This chart deploys one or more **cluster deployments** with specific roles for processing tasks. Each cluster can handle one or more roles:
 - **Index**: Process indexing requests from SQS
-- **Query**: Process query requests from SQS
-- **Pipeline**: Execute pipeline tasks from SQS
+- **Query**: Process query requests and generate sub-queries
+- **Stream**: Execute stream tasks from SQS
 
 Unlike REST-based deployments, these clusters are role-based and consume work from SQS queues, making them ideal for asynchronous, scalable processing.
 
@@ -26,9 +26,10 @@ Unlike REST-based deployments, these clusters are role-based and consume work fr
 ```bash
 helm install my-streamer log-10x/streamer-10x \
   --set log10xApiKey="your-api-key" \
-  --set clusters[0].index.queueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/index-queue" \
-  --set clusters[0].query.queueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/query-queue" \
-  --set clusters[0].pipeline.queueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/pipeline-queue"
+  --set indexQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/index-queue" \
+  --set queryQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/query-queue" \
+  --set subQueryQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/subquery-queue" \
+  --set streamQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/stream-queue"
 ```
 
 ### Production Installation (Multiple Clusters)
@@ -38,12 +39,20 @@ Create a `values.yaml`:
 ```yaml
 log10xApiKey: "your-api-key"
 
+# Global queue URLs
+indexQueueUrl: "https://sqs.us-west-2.amazonaws.com/.../index-queue"
+queryQueueUrl: "https://sqs.us-west-2.amazonaws.com/.../query-queue"
+subQueryQueueUrl: "https://sqs.us-west-2.amazonaws.com/.../subquery-queue"
+streamQueueUrl: "https://sqs.us-west-2.amazonaws.com/.../stream-queue"
+
+# S3 bucket configuration
+inputBucket: "my-bucket"
+indexBucket: "my-bucket/indexed/"
+
 clusters:
   # Dedicated indexing cluster (resource-intensive)
   - name: indexer
-    index:
-      queueUrl: "https://sqs.us-west-2.amazonaws.com/.../index-queue"
-      writeContainer: "my-bucket/indexed/"
+    roles: ["index"]
     replicaCount: 2
     maxParallelRequests: 5
     resources:
@@ -61,9 +70,7 @@ clusters:
 
   # Query processing cluster
   - name: query-handler
-    query:
-      queueUrl: "https://sqs.us-west-2.amazonaws.com/.../query-queue"
-      pipelineUrl: "https://sqs.us-west-2.amazonaws.com/.../pipeline-queue"
+    roles: ["query"]
     replicaCount: 5
     maxParallelRequests: 20
     resources:
@@ -75,10 +82,9 @@ clusters:
       minReplicas: 5
       maxReplicas: 20
 
-  # Pipeline execution cluster
-  - name: pipeline-worker
-    pipeline:
-      queueUrl: "https://sqs.us-west-2.amazonaws.com/.../pipeline-queue"
+  # Stream execution cluster
+  - name: stream-worker
+    roles: ["stream"]
     replicaCount: 10
     maxParallelRequests: 15
     resources:
@@ -99,6 +105,24 @@ helm install my-streamer log-10x/streamer-10x -f values.yaml
 
 ## Configuration
 
+### Global Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `log10xApiKey` | Log10x API key (required) | `""` |
+| `indexQueueUrl` | SQS queue URL for index operations | `""` |
+| `queryQueueUrl` | SQS queue URL for query operations | `""` |
+| `subQueryQueueUrl` | SQS queue URL for sub-query operations | `""` |
+| `streamQueueUrl` | SQS queue URL for stream operations | `""` |
+| `inputBucket` | S3 bucket for input data | `""` |
+| `indexBucket` | S3 bucket path for indexed results | `""` |
+| `image.repository` | Container image repository | `ghcr.io/log-10x/quarkus-10x` |
+| `image.tag` | Container image tag | Chart appVersion |
+| `serviceAccount.create` | Create service account | `true` |
+| `serviceAccount.annotations` | Service account annotations (for IAM roles) | `{}` |
+| `github.config.repo` | GitHub repo for config | `""` |
+| `github.symbols.repo` | GitHub repo for symbols | `""` |
+
 ### Cluster Configuration
 
 Each cluster in the `clusters` array supports:
@@ -106,13 +130,9 @@ Each cluster in the `clusters` array supports:
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `name` | Cluster name (used in deployment naming) | Required |
-| `index.queueUrl` | SQS queue URL for index requests | `""` (disabled) |
-| `index.writeContainer` | S3 path for indexing results | `""` (optional) |
-| `query.queueUrl` | SQS queue URL for query requests | `""` (disabled) |
-| `query.pipelineUrl` | SQS queue URL for invoking pipelines | Uses `pipeline.queueUrl` if available |
-| `pipeline.queueUrl` | SQS queue URL for pipeline execution | `""` (disabled) |
+| `roles` | Array of roles: `["index"]`, `["query"]`, `["stream"]`, or combinations | Required |
 | `replicaCount` | Number of pod replicas | `1` |
-| `maxParallelRequests` | Max concurrent pipelines per pod | `10` |
+| `maxParallelRequests` | Max concurrent tasks per pod | `10` |
 | `maxQueuedRequests` | Max queued requests per pod | `1000` |
 | `readinessThresholdPercent` | Load threshold for readiness | `90` |
 | `extraEnv` | Additional environment variables | `[]` |
@@ -124,18 +144,6 @@ Each cluster in the `clusters` array supports:
 | `tolerations` | Pod tolerations | `[]` |
 | `affinity` | Pod affinity rules | `{}` |
 
-### Global Configuration
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `log10xApiKey` | Log10x API key (required) | `""` |
-| `image.repository` | Container image repository | `ghcr.io/log-10x/quarkus-10x` |
-| `image.tag` | Container image tag | Chart appVersion |
-| `serviceAccount.create` | Create service account | `true` |
-| `serviceAccount.annotations` | Service account annotations (for IAM roles) | `{}` |
-| `github.config.repo` | GitHub repo for config | `""` |
-| `github.symbols.repo` | GitHub repo for symbols | `""` |
-
 ## Integrating with Terraform
 
 This chart works seamlessly with the [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws) module:
@@ -144,19 +152,25 @@ This chart works seamlessly with the [terraform-aws-tenx-streamer-infra](https:/
 # Terraform
 module "tenx_streamer_infra" {
   source  = "log-10x/tenx-streamer-infra/aws"
-  version = "~> 0.1"
+  version = "~> 0.3"
 
-  tenx_streamer_index_queue_name = "my-index-queue"
-  tenx_streamer_query_queue_name = "my-query-queue"
-  tenx_streamer_pipeline_queue_name = "my-pipeline-queue"
+  tenx_streamer_index_queue_name    = "my-index-queue"
+  tenx_streamer_query_queue_name    = "my-query-queue"
+  tenx_streamer_subquery_queue_name = "my-subquery-queue"
+  tenx_streamer_stream_queue_name   = "my-stream-queue"
+
+  tenx_streamer_index_source_bucket_name  = "my-source-bucket"
+  tenx_streamer_index_results_bucket_name = "my-results-bucket"
 }
 
 output "helm_values" {
   value = {
-    index_queue_url = module.tenx_streamer_infra.index_queue_url
-    query_queue_url = module.tenx_streamer_infra.query_queue_url
-    pipeline_queue_url = module.tenx_streamer_infra.pipeline_queue_url
-    index_write_container = module.tenx_streamer_infra.index_write_container
+    index_queue_url    = module.tenx_streamer_infra.index_queue_url
+    query_queue_url    = module.tenx_streamer_infra.query_queue_url
+    subquery_queue_url = module.tenx_streamer_infra.subquery_queue_url
+    stream_queue_url   = module.tenx_streamer_infra.stream_queue_url
+    input_bucket       = module.tenx_streamer_infra.index_source_bucket_name
+    index_bucket       = module.tenx_streamer_infra.index_write_container
   }
 }
 ```
@@ -166,15 +180,17 @@ Then use the outputs:
 ```bash
 helm install my-streamer log-10x/streamer-10x \
   --set log10xApiKey="your-api-key" \
-  --set clusters[0].index.queueUrl="$(terraform output -raw helm_values | jq -r '.index_queue_url')" \
-  --set clusters[0].query.queueUrl="$(terraform output -raw helm_values | jq -r '.query_queue_url')" \
-  --set clusters[0].pipeline.queueUrl="$(terraform output -raw helm_values | jq -r '.pipeline_queue_url')" \
-  --set clusters[0].index.writeContainer="$(terraform output -raw helm_values | jq -r '.index_write_container')"
+  --set indexQueueUrl="$(terraform output -raw helm_values | jq -r '.index_queue_url')" \
+  --set queryQueueUrl="$(terraform output -raw helm_values | jq -r '.query_queue_url')" \
+  --set subQueryQueueUrl="$(terraform output -raw helm_values | jq -r '.subquery_queue_url')" \
+  --set streamQueueUrl="$(terraform output -raw helm_values | jq -r '.stream_queue_url')" \
+  --set inputBucket="$(terraform output -raw helm_values | jq -r '.input_bucket')" \
+  --set indexBucket="$(terraform output -raw helm_values | jq -r '.index_bucket')"
 ```
 
 ## AWS IAM Configuration
 
-The pods need IAM permissions to access SQS queues. Configure via service account annotations:
+The pods need IAM permissions to access SQS queues and S3 buckets. Configure via service account annotations:
 
 ```yaml
 serviceAccount:
@@ -189,6 +205,7 @@ Required IAM permissions:
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "SQSAccess",
       "Effect": "Allow",
       "Action": [
         "sqs:ReceiveMessage",
@@ -197,6 +214,38 @@ Required IAM permissions:
         "sqs:GetQueueAttributes"
       ],
       "Resource": "arn:aws:sqs:*:*:*"
+    },
+    {
+      "Sid": "S3SourceBucketRead",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-source-bucket/*"
+      ]
+    },
+    {
+      "Sid": "S3ResultsBucketReadWrite",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-results-bucket/*"
+      ]
+    },
+    {
+      "Sid": "S3ResultsBucketList",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::your-results-bucket"
+      ]
     }
   ]
 }

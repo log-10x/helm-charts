@@ -6,14 +6,14 @@ The following clusters have been deployed:
 {{- range $index, $cluster := .Values.clusters }}
 {{- $replicas := $cluster.replicaCount | default 1 | int }}
   - {{ $cluster.name }} ({{ $replicas }} replica{{ if ne $replicas 1 }}s{{ end }})
-    {{- if $cluster.index }}
-    * Index: {{ if $cluster.index.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- if has "index" $cluster.roles }}
+    * Index: Enabled
     {{- end }}
-    {{- if $cluster.query }}
-    * Query: {{ if $cluster.query.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- if has "query" $cluster.roles }}
+    * Query: Enabled
     {{- end }}
-    {{- if $cluster.pipeline }}
-    * Pipeline: {{ if $cluster.pipeline.queueUrl }}Enabled{{ else }}Disabled{{ end }}
+    {{- if has "stream" $cluster.roles }}
+    * Stream: Enabled
     {{- end }}
 {{- end }}
 
