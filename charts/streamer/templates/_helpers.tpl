@@ -112,7 +112,7 @@ Generates env vars based on roles array and global queue URLs
 {{- $values := .values -}}
 {{- $hasIndex := has "index" $cluster.roles -}}
 {{- $hasQuery := has "query" $cluster.roles -}}
-{{- $hasPipeline := has "pipeline" $cluster.roles -}}
+{{- $hasStream := has "stream" $cluster.roles -}}
 {{- if and $hasIndex $values.indexQueueUrl }}
 - name: TENX_QUARKUS_INDEX_QUEUE_URL
   value: {{ $values.indexQueueUrl | quote }}
@@ -121,12 +121,20 @@ Generates env vars based on roles array and global queue URLs
 - name: TENX_QUARKUS_QUERY_QUEUE_URL
   value: {{ $values.queryQueueUrl | quote }}
 {{- end }}
-{{- if and $hasPipeline $values.pipelineQueueUrl }}
-- name: TENX_QUARKUS_PIPELINE_QUEUE_URL
-  value: {{ $values.pipelineQueueUrl | quote }}
+{{- if and $hasQuery $values.subQueryQueueUrl }}
+- name: TENX_QUARKUS_SUBQUERY_QUEUE_URL
+  value: {{ $values.subQueryQueueUrl | quote }}
 {{- end }}
-{{- if and (or $hasQuery $hasPipeline) $values.pipelineQueueUrl }}
-- name: TENX_INVOKE_PIPELINE_ENDPOINT
-  value: {{ $values.pipelineQueueUrl | quote }}
+{{- if and $hasStream $values.streamQueueUrl }}
+- name: TENX_QUARKUS_STREAM_QUEUE_URL
+  value: {{ $values.streamQueueUrl | quote }}
+{{- end }}
+{{- if $values.subQueryQueueUrl }}
+- name: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT
+  value: {{ $values.subQueryQueueUrl | quote }}
+{{- end }}
+{{- if $values.streamQueueUrl }}
+- name: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT
+  value: {{ $values.streamQueueUrl | quote }}
 {{- end }}
 {{- end -}}
