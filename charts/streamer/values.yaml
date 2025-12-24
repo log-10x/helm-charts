@@ -92,11 +92,17 @@ indexQueueUrl: ""
 # Applied to clusters with "query" in their roles array
 queryQueueUrl: ""
 
-# SQS queue URL for pipeline operations
-# Environment variable: TENX_QUARKUS_PIPELINE_QUEUE_URL (for pipeline role)
-# Environment variable: TENX_INVOKE_PIPELINE_ENDPOINT (for query and pipeline roles)
-# Applied to clusters with "pipeline" or "query" in their roles array
-pipelineQueueUrl: ""
+# SQS queue URL for sub-query operations
+# Environment variable: TENX_QUARKUS_SUBQUERY_QUEUE_URL (for query role)
+# Environment variable: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT (for all roles)
+# Applied to clusters with "query" in their roles array
+subQueryQueueUrl: ""
+
+# SQS queue URL for stream operations
+# Environment variable: TENX_QUARKUS_STREAM_QUEUE_URL (for stream role)
+# Environment variable: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT (for all roles)
+# Applied to clusters with "stream" in their roles array
+streamQueueUrl: ""
 
 ###### Image settings ######
 
@@ -125,7 +131,7 @@ imagePullSecrets: []
 ###### Cluster Configuration ######
 
 # Clusters define independent deployments with specific roles
-# Each cluster can handle one or more roles (index, query, pipeline)
+# Each cluster can handle one or more roles (index, query, stream)
 # Roles are assigned via the "roles" array, and appropriate environment variables
 # are set based on the global queue URLs defined above
 #
@@ -134,8 +140,8 @@ imagePullSecrets: []
 clusters:
   - name: all-in-one
     # Roles this cluster should handle
-    # Available roles: "index", "query", "pipeline"
-    roles: ["index", "query", "pipeline"]
+    # Available roles: "index", "query", "stream"
+    roles: ["index", "query", "stream"]
 
     # Static replica count (not used if autoscaling.enabled is true)
     replicaCount: 1
@@ -215,7 +221,8 @@ clusters:
 # Configure global queue URLs at the top of this file:
 #   indexQueueUrl: "https://sqs.../index-queue"
 #   queryQueueUrl: "https://sqs.../query-queue"
-#   pipelineQueueUrl: "https://sqs.../pipeline-queue"
+#   subQueryQueueUrl: "https://sqs.../subquery-queue"
+#   streamQueueUrl: "https://sqs.../stream-queue"
 #
 # clusters:
 #   - name: indexer
@@ -239,8 +246,8 @@ clusters:
 #         cpu: 1000m
 #         memory: 2Gi
 #
-#   - name: pipeline-worker
-#     roles: ["pipeline"]
+#   - name: stream-worker
+#     roles: ["stream"]
 #     replicaCount: 10
 #     maxParallelRequests: 15
 #     resources:
