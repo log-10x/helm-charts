@@ -297,3 +297,107 @@ containerSecurityContext: {}
   # capabilities:
   #   drop:
   #   - ALL
+
+###### Fluent-bit Configuration ######
+
+# Fluent-bit sidecar configuration
+# Automatically deployed for all clusters with "stream" in their roles array
+# Stream workers use the Fluency library to emit events to fluent-bit
+# via the forward protocol on localhost:24224
+# The streamer application receives connection details via:
+#   TENX_REMOTE_FORWARD_HOST=127.0.0.1
+#   TENX_REMOTE_FORWARD_PORT=24224
+fluentBit:
+  # Fluent-bit container image
+  image:
+    repository: fluent/fluent-bit
+    tag: "3.2.7"
+    pullPolicy: IfNotPresent
+
+  # Log level for fluent-bit
+  # Options: off, error, warn, info, debug, trace
+  logLevel: info
+
+  # Resource limits for fluent-bit container
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 200m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Buffer storage size limit
+  # This is the maximum disk space fluent-bit can use for buffering
+  # Not pre-allocated - grows as needed, pod evicted if exceeded
+  # Recommendation: 500Mi-1Gi for most workloads, 2-5Gi for high-volume
+  bufferStorageSize: 1Gi
+
+  # Output configuration
+  # Default: stdout (logs to container output, aggregated by k8s log collector)
+  # Available types: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+  output:
+    # Output type - leave empty or set to "stdout" for default
+    # Must be one of: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+    type: stdout
+
+    # Type-specific configuration (only used when type is not stdout)
+    config:
+      # S3 output configuration (used when type: s3)
+      # Authentication: Uses IRSA (IAM Roles for Service Accounts)
+      # Ensure serviceAccount has eks.amazonaws.com/role-arn annotation
+      s3:
+        bucket: ""
+        region: us-east-1
+
+      # CloudWatch Logs output configuration (used when type: cloudwatch)
+      # Authentication: Uses IRSA (IAM Roles for Service Accounts)
+      # Required IAM permissions: logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents
+      # Ensure serviceAccount has eks.amazonaws.com/role-arn annotation
+      cloudwatch:
+        region: us-east-1
+        logGroupName: /aws/eks/fluent-bit-logs
+        logStreamPrefix: stream-worker-
+        autoCreateGroup: true
+
+      # Elasticsearch output configuration (used when type: elasticsearch)
+      # Authentication: Basic auth via username/password stored in secret
+      elasticsearch:
+        host: ""
+        port: 9200
+        index: fluent-bit
+        type: _doc
+        # HTTP basic authentication
+        httpUser: ""     # Provide via --set-string fluentBit.output.config.elasticsearch.httpUser=<user>
+        httpPasswd: ""   # Provide via --set-string fluentBit.output.config.elasticsearch.httpPasswd=<password>
+        tls: true
+        tlsVerify: true
+
+      # Splunk output configuration (used when type: splunk)
+      # Authentication: HEC token stored in secret
+      splunk:
+        host: ""
+        port: 8088
+        token: ""  # Provide via --set-string fluentBit.output.config.splunk.token=<token>
+        tls: true
+        tlsVerify: true
+
+      # Datadog output configuration (used when type: datadog)
+      # Authentication: API key stored in secret
+      datadog:
+        host: http-intake.logs.datadoghq.com
+        apiKey: ""  # Provide via --set-string fluentBit.output.config.datadog.apiKey=<key>
+        service: log10x-streamer
+        source: log10x
+
+  # Advanced: Provide raw fluent-bit configuration
+  # This overrides the output configuration above
+  # Use this for custom configurations or multiple outputs
+  config: ""
+  # Example:
+  # config: |
+  #   [OUTPUT]
+  #       Name   s3
+  #       Match  *
+  #       bucket my-custom-bucket
+  #       region us-west-2

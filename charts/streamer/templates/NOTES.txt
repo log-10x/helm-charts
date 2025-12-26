@@ -28,4 +28,55 @@ To view the logs:
 To check pod health:
   kubectl get pods -l app={{ include "log10x-streamer.name" . }}
 
+{{- $hasStreamWorker := false }}
+{{- range .Values.clusters }}
+  {{- if has "stream" .roles }}
+    {{- $hasStreamWorker = true }}
+  {{- end }}
+{{- end }}
+{{- if $hasStreamWorker }}
+
+Fluent-bit Configuration:
+- Stream workers are configured to send events to: {{ .Values.fluentBit.output.type | default "stdout" }}
+{{- if eq .Values.fluentBit.output.type "stdout" }}
+  - Logs are sent to container stdout (aggregated by Kubernetes log collector)
+{{- else if eq .Values.fluentBit.output.type "s3" }}
+  {{- if .Values.fluentBit.output.config.s3.bucket }}
+  - S3 Bucket: {{ .Values.fluentBit.output.config.s3.bucket }}
+  - Region: {{ .Values.fluentBit.output.config.s3.region | default "us-east-1" }}
+  - Authentication: IRSA (IAM Role for Service Account)
+  {{- else }}
+  - WARNING: S3 bucket not configured! Set fluentBit.output.config.s3.bucket
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "cloudwatch" }}
+  - CloudWatch Log Group: {{ .Values.fluentBit.output.config.cloudwatch.logGroupName }}
+  - Region: {{ .Values.fluentBit.output.config.cloudwatch.region | default "us-east-1" }}
+  - Authentication: IRSA (IAM Role for Service Account)
+{{- else if eq .Values.fluentBit.output.type "elasticsearch" }}
+  - Elasticsearch Host: {{ .Values.fluentBit.output.config.elasticsearch.host }}:{{ .Values.fluentBit.output.config.elasticsearch.port | default 9200 }}
+  - Index: {{ .Values.fluentBit.output.config.elasticsearch.index | default "fluent-bit" }}
+  {{- if not .Values.fluentBit.output.config.elasticsearch.httpUser }}
+  - WARNING: Elasticsearch credentials not set! Use --set-string fluentBit.output.config.elasticsearch.httpUser/httpPasswd
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "splunk" }}
+  - Splunk Host: {{ .Values.fluentBit.output.config.splunk.host }}:{{ .Values.fluentBit.output.config.splunk.port | default 8088 }}
+  {{- if not .Values.fluentBit.output.config.splunk.token }}
+  - WARNING: Splunk token not set! Use --set-string fluentBit.output.config.splunk.token=<token>
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "datadog" }}
+  - Datadog Host: {{ .Values.fluentBit.output.config.datadog.host | default "http-intake.logs.datadoghq.com" }}
+  - Service: {{ .Values.fluentBit.output.config.datadog.service | default "log10x-streamer" }}
+  {{- if not .Values.fluentBit.output.config.datadog.apiKey }}
+  - WARNING: Datadog API key not set! Use --set-string fluentBit.output.config.datadog.apiKey=<key>
+  {{- end }}
+{{- end }}
+
+To check fluent-bit health on stream workers:
+  kubectl logs -l cluster=<stream-cluster-name> -c fluent-bit --tail=50
+
+To view fluent-bit metrics:
+  kubectl port-forward <stream-pod-name> 2020:2020
+  curl http://localhost:2020/api/v1/metrics/prometheus
+{{- end }}
+
 For more information, visit: https://github.com/log-10x/helm-charts

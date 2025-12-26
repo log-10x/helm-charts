@@ -104,10 +104,82 @@ spec:
             - name: github-data
               mountPath: /data
           {{- end }}
-      {{- if include "log10x-streamer.githubEnabled" $ }}
+        {{- if has "stream" $cluster.roles }}
+        - name: fluent-bit
+          image: "{{ $.Values.fluentBit.image.repository }}:{{ $.Values.fluentBit.image.tag }}"
+          imagePullPolicy: {{ $.Values.fluentBit.image.pullPolicy }}
+          ports:
+            - name: forward
+              containerPort: 24224
+              protocol: TCP
+            - name: metrics
+              containerPort: 2020
+              protocol: TCP
+          {{- if or (eq $.Values.fluentBit.output.type "splunk") (eq $.Values.fluentBit.output.type "datadog") (eq $.Values.fluentBit.output.type "elasticsearch") }}
+          env:
+          {{- if eq $.Values.fluentBit.output.type "splunk" }}
+            - name: SPLUNK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: splunk-token
+          {{- else if eq $.Values.fluentBit.output.type "datadog" }}
+            - name: DATADOG_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: datadog-api-key
+          {{- else if eq $.Values.fluentBit.output.type "elasticsearch" }}
+            - name: ELASTICSEARCH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: elasticsearch-user
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: elasticsearch-password
+          {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml $.Values.fluentBit.resources | nindent 12 }}
+          volumeMounts:
+            - name: fluent-config
+              mountPath: /fluent-bit/etc/
+            - name: fluent-buffer
+              mountPath: /tmp/fluent-bit
+        {{- end }}
+      {{- if or (include "log10x-streamer.githubEnabled" $) (has "stream" $cluster.roles) }}
       volumes:
+      {{- if include "log10x-streamer.githubEnabled" $ }}
         - name: github-data
           emptyDir: {}
+      {{- end }}
+      {{- if has "stream" $cluster.roles }}
+        - name: fluent-config
+          configMap:
+            name: {{ include "log10x-streamer.fullname" $ }}-fluent-bit
+        - name: fluent-buffer
+          emptyDir:
+            sizeLimit: {{ $.Values.fluentBit.bufferStorageSize }}
+      {{- end }}
       {{- end }}
       {{- with $cluster.nodeSelector }}
       nodeSelector:

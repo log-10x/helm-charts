@@ -129,6 +129,12 @@ Generates env vars based on roles array and global queue URLs
 - name: TENX_QUARKUS_STREAM_QUEUE_URL
   value: {{ $values.streamQueueUrl | quote }}
 {{- end }}
+{{- if $hasStream }}
+- name: TENX_REMOTE_FORWARD_HOST
+  value: "127.0.0.1"
+- name: TENX_REMOTE_FORWARD_PORT
+  value: "24224"
+{{- end }}
 {{- if $values.subQueryQueueUrl }}
 - name: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT
   value: {{ $values.subQueryQueueUrl | quote }}
