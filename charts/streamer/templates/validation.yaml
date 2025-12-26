@@ -1,0 +1,16 @@
+{{- $hasStreamWorker := false }}
+{{- range .Values.clusters }}
+  {{- if has "stream" .roles }}
+    {{- $hasStreamWorker = true }}
+  {{- end }}
+{{- end }}
+{{- if $hasStreamWorker }}
+{{- $validOutputs := list "stdout" "s3" "cloudwatch" "elasticsearch" "splunk" "datadog" }}
+{{- if .Values.fluentBit.output.type }}
+  {{- if not (has .Values.fluentBit.output.type $validOutputs) }}
+    {{- fail (printf "fluentBit.output.type '%s' is not valid. Must be one of: %s" .Values.fluentBit.output.type (join ", " $validOutputs)) }}
+  {{- end }}
+{{- else }}
+  {{- fail "fluentBit.output.type is required when stream workers are enabled" }}
+{{- end }}
+{{- end }}

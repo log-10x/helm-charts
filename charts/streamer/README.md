@@ -7,29 +7,29 @@ Official Helm chart for deploying SQS-based Log10x pipeline streaming clusters o
 This chart deploys one or more **cluster deployments** with specific roles for processing tasks. Each cluster can handle one or more roles:
 - **Index**: Process indexing requests from SQS
 - **Query**: Process query requests and generate sub-queries
-- **Stream**: Execute stream tasks from SQS
+- **Stream**: Execute stream tasks from SQS and forward results to configured destinations
 
-Unlike REST-based deployments, these clusters are role-based and consume work from SQS queues, making them ideal for asynchronous, scalable processing.
+Stream workers automatically include a **fluent-bit sidecar** for log forwarding to destinations like S3, CloudWatch, Elasticsearch, Splunk, or Datadog.
 
 ## Prerequisites
 
 - Kubernetes 1.19+
 - Helm 3.0+
-- AWS SQS queues created (recommended: use [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws))
+- AWS SQS queues (recommended: use [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws))
 - Log10x API key
-- AWS credentials configured (via IAM roles or service account annotations)
+- AWS credentials configured (via IRSA or service account annotations)
 
-## Installation
+## Quick Start
 
-### Basic Installation (Single Cluster)
+### Basic Installation (Single All-in-One Cluster)
 
 ```bash
 helm install my-streamer log-10x/streamer-10x \
   --set log10xApiKey="your-api-key" \
-  --set indexQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/index-queue" \
-  --set queryQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/query-queue" \
-  --set subQueryQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/subquery-queue" \
-  --set streamQueueUrl="https://sqs.us-west-2.amazonaws.com/123456789012/stream-queue"
+  --set indexQueueUrl="https://sqs.us-west-2.amazonaws.com/.../index-queue" \
+  --set queryQueueUrl="https://sqs.us-west-2.amazonaws.com/.../query-queue" \
+  --set subQueryQueueUrl="https://sqs.us-west-2.amazonaws.com/.../subquery-queue" \
+  --set streamQueueUrl="https://sqs.us-west-2.amazonaws.com/.../stream-queue"
 ```
 
 ### Production Installation (Multiple Clusters)
@@ -49,8 +49,14 @@ streamQueueUrl: "https://sqs.us-west-2.amazonaws.com/.../stream-queue"
 inputBucket: "my-bucket"
 indexBucket: "my-bucket/indexed/"
 
+# Service account for AWS IRSA
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-streamer-role
+
 clusters:
-  # Dedicated indexing cluster (resource-intensive)
+  # Dedicated indexing cluster
   - name: indexer
     roles: ["index"]
     replicaCount: 2
@@ -59,14 +65,10 @@ clusters:
       requests:
         cpu: 2000m
         memory: 4Gi
-      limits:
-        cpu: 4000m
-        memory: 8Gi
     autoscaling:
       enabled: true
       minReplicas: 2
       maxReplicas: 10
-      targetCPUUtilizationPercentage: 70
 
   # Query processing cluster
   - name: query-handler
@@ -77,12 +79,8 @@ clusters:
       requests:
         cpu: 1000m
         memory: 2Gi
-    autoscaling:
-      enabled: true
-      minReplicas: 5
-      maxReplicas: 20
 
-  # Stream execution cluster
+  # Stream execution cluster with fluent-bit sidecar
   - name: stream-worker
     roles: ["stream"]
     replicaCount: 10
@@ -91,106 +89,82 @@ clusters:
       requests:
         cpu: 1000m
         memory: 2Gi
-    autoscaling:
-      enabled: true
-      minReplicas: 10
-      maxReplicas: 50
+
+# Fluent-bit configuration for stream workers
+fluentBit:
+  output:
+    type: s3  # Options: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+    config:
+      s3:
+        bucket: my-logs-bucket
+        region: us-west-2
 ```
 
-Then install:
+Install:
 
 ```bash
 helm install my-streamer log-10x/streamer-10x -f values.yaml
 ```
 
-## Configuration
+## Key Configuration
 
-### Global Configuration
+### Global Settings
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `log10xApiKey` | Log10x API key (required) | `""` |
-| `indexQueueUrl` | SQS queue URL for index operations | `""` |
-| `queryQueueUrl` | SQS queue URL for query operations | `""` |
-| `subQueryQueueUrl` | SQS queue URL for sub-query operations | `""` |
-| `streamQueueUrl` | SQS queue URL for stream operations | `""` |
-| `inputBucket` | S3 bucket for input data | `""` |
-| `indexBucket` | S3 bucket path for indexed results | `""` |
-| `image.repository` | Container image repository | `ghcr.io/log-10x/quarkus-10x` |
-| `image.tag` | Container image tag | Chart appVersion |
-| `serviceAccount.create` | Create service account | `true` |
-| `serviceAccount.annotations` | Service account annotations (for IAM roles) | `{}` |
-| `github.config.repo` | GitHub repo for config | `""` |
-| `github.symbols.repo` | GitHub repo for symbols | `""` |
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `log10xApiKey` | Log10x API key | Yes |
+| `indexQueueUrl` | SQS queue URL for index operations | For index role |
+| `queryQueueUrl` | SQS queue URL for query operations | For query role |
+| `subQueryQueueUrl` | SQS queue URL for sub-query operations | For query role |
+| `streamQueueUrl` | SQS queue URL for stream operations | For stream role |
+| `inputBucket` | S3 bucket for input data | Recommended |
+| `indexBucket` | S3 bucket path for indexed results | Recommended |
 
-### Cluster Configuration
-
-Each cluster in the `clusters` array supports:
+### Cluster Settings
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `name` | Cluster name (used in deployment naming) | Required |
-| `roles` | Array of roles: `["index"]`, `["query"]`, `["stream"]`, or combinations | Required |
-| `replicaCount` | Number of pod replicas | `1` |
-| `maxParallelRequests` | Max concurrent tasks per pod | `10` |
-| `maxQueuedRequests` | Max queued requests per pod | `1000` |
-| `readinessThresholdPercent` | Load threshold for readiness | `90` |
-| `extraEnv` | Additional environment variables | `[]` |
-| `resources` | CPU/Memory requests and limits | `{}` |
-| `autoscaling.enabled` | Enable HPA | `false` |
-| `autoscaling.minReplicas` | Minimum replicas | `1` |
-| `autoscaling.maxReplicas` | Maximum replicas | `5` |
-| `nodeSelector` | Node selection constraints | `{}` |
-| `tolerations` | Pod tolerations | `[]` |
-| `affinity` | Pod affinity rules | `{}` |
+| `clusters[].name` | Cluster name | Required |
+| `clusters[].roles` | Array: `["index"]`, `["query"]`, `["stream"]`, or combinations | Required |
+| `clusters[].replicaCount` | Number of pod replicas | `1` |
+| `clusters[].maxParallelRequests` | Max concurrent tasks per pod | `10` |
+| `clusters[].resources` | CPU/Memory requests and limits | `{}` |
+| `clusters[].autoscaling.enabled` | Enable HPA | `false` |
 
-## Integrating with Terraform
+### Fluent-bit Configuration (Stream Workers Only)
 
-This chart works seamlessly with the [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws) module:
+Stream workers automatically deploy a fluent-bit sidecar for log forwarding.
 
-```hcl
-# Terraform
-module "tenx_streamer_infra" {
-  source  = "log-10x/tenx-streamer-infra/aws"
-  version = "~> 0.3"
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `fluentBit.output.type` | Output destination: `stdout`, `s3`, `cloudwatch`, `elasticsearch`, `splunk`, `datadog` | `stdout` |
+| `fluentBit.output.config.s3.bucket` | S3 bucket name (for S3 output) | `""` |
+| `fluentBit.output.config.cloudwatch.logGroupName` | CloudWatch log group (for CloudWatch output) | `""` |
+| `fluentBit.output.config.elasticsearch.host` | Elasticsearch host (for ES output) | `""` |
+| `fluentBit.output.config.splunk.host` | Splunk HEC endpoint (for Splunk output) | `""` |
+| `fluentBit.output.config.datadog.apiKey` | Datadog API key (for Datadog output) | `""` |
+| `fluentBit.bufferStorageSize` | Max buffer disk space | `1Gi` |
 
-  tenx_streamer_index_queue_name    = "my-index-queue"
-  tenx_streamer_query_queue_name    = "my-query-queue"
-  tenx_streamer_subquery_queue_name = "my-subquery-queue"
-  tenx_streamer_stream_queue_name   = "my-stream-queue"
+**Authentication:**
+- **S3/CloudWatch**: Uses IRSA (configure via `serviceAccount.annotations`)
+- **Elasticsearch/Splunk/Datadog**: Uses Kubernetes secrets (provide credentials via `--set-string`)
 
-  tenx_streamer_index_source_bucket_name  = "my-source-bucket"
-  tenx_streamer_index_results_bucket_name = "my-results-bucket"
-}
+Example with CloudWatch:
 
-output "helm_values" {
-  value = {
-    index_queue_url    = module.tenx_streamer_infra.index_queue_url
-    query_queue_url    = module.tenx_streamer_infra.query_queue_url
-    subquery_queue_url = module.tenx_streamer_infra.subquery_queue_url
-    stream_queue_url   = module.tenx_streamer_infra.stream_queue_url
-    input_bucket       = module.tenx_streamer_infra.index_source_bucket_name
-    index_bucket       = module.tenx_streamer_infra.index_write_container
-  }
-}
-```
-
-Then use the outputs:
-
-```bash
-helm install my-streamer log-10x/streamer-10x \
-  --set log10xApiKey="your-api-key" \
-  --set indexQueueUrl="$(terraform output -raw helm_values | jq -r '.index_queue_url')" \
-  --set queryQueueUrl="$(terraform output -raw helm_values | jq -r '.query_queue_url')" \
-  --set subQueryQueueUrl="$(terraform output -raw helm_values | jq -r '.subquery_queue_url')" \
-  --set streamQueueUrl="$(terraform output -raw helm_values | jq -r '.stream_queue_url')" \
-  --set inputBucket="$(terraform output -raw helm_values | jq -r '.input_bucket')" \
-  --set indexBucket="$(terraform output -raw helm_values | jq -r '.index_bucket')"
+```yaml
+fluentBit:
+  output:
+    type: cloudwatch
+    config:
+      cloudwatch:
+        region: us-west-2
+        logGroupName: /aws/eks/my-streamer-logs
+        logStreamPrefix: stream-
 ```
 
 ## AWS IAM Configuration
 
-The pods need IAM permissions to access SQS queues and S3 buckets. Configure via service account annotations:
+Configure IRSA for AWS service access:
 
 ```yaml
 serviceAccount:
@@ -199,98 +173,35 @@ serviceAccount:
     eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-streamer-role
 ```
 
-Required IAM permissions:
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "SQSAccess",
-      "Effect": "Allow",
-      "Action": [
-        "sqs:ReceiveMessage",
-        "sqs:DeleteMessage",
-        "sqs:SendMessage",
-        "sqs:GetQueueAttributes"
-      ],
-      "Resource": "arn:aws:sqs:*:*:*"
-    },
-    {
-      "Sid": "S3SourceBucketRead",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject"
-      ],
-      "Resource": [
-        "arn:aws:s3:::your-source-bucket/*"
-      ]
-    },
-    {
-      "Sid": "S3ResultsBucketReadWrite",
-      "Effect": "Allow",
-      "Action": [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject"
-      ],
-      "Resource": [
-        "arn:aws:s3:::your-results-bucket/*"
-      ]
-    },
-    {
-      "Sid": "S3ResultsBucketList",
-      "Effect": "Allow",
-      "Action": [
-        "s3:ListBucket"
-      ],
-      "Resource": [
-        "arn:aws:s3:::your-results-bucket"
-      ]
-    }
-  ]
-}
-```
+**Required IAM permissions:**
+- SQS: `ReceiveMessage`, `DeleteMessage`, `SendMessage`, `GetQueueAttributes`
+- S3 source bucket: `GetObject`
+- S3 results bucket: `GetObject`, `PutObject`, `DeleteObject`, `ListBucket`
+- CloudWatch Logs (if using): `CreateLogGroup`, `CreateLogStream`, `PutLogEvents`
 
-## Health Checks
-
-The chart uses Quarkus health endpoints:
-- `/q/health/live` - Liveness probe
-- `/q/health/ready` - Readiness probe
-- `/q/health/started` - Startup probe
+For detailed IAM policy examples, see the [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws) module.
 
 ## Monitoring
 
-Check cluster status:
+Check deployment status:
 
 ```bash
 # View all deployments
 kubectl get deployments -l app=streamer-10x
 
-# View specific cluster
-kubectl get deployment my-streamer-indexer
-
 # View logs
-kubectl logs -l cluster=indexer --tail=100 -f
+kubectl logs -l cluster=stream-worker --tail=100 -f
+
+# Check fluent-bit sidecar logs
+kubectl logs -l cluster=stream-worker -c fluent-bit --tail=50
 
 # Check pod health
 kubectl get pods -l app=streamer-10x
 ```
 
-## Troubleshooting
+## Documentation
 
-### Pods not processing messages
-
-1. Check SQS queue URLs are correct
-2. Verify IAM permissions for SQS access
-3. Check pod logs: `kubectl logs <pod-name>`
-4. Verify queue has messages: `aws sqs get-queue-attributes --queue-url <url> --attribute-names ApproximateNumberOfMessages`
-
-### Pods failing health checks
-
-1. Check startup logs: `kubectl logs <pod-name>`
-2. Verify API key is correct
-3. Check resource limits aren't too restrictive
-4. Increase `startupProbe.failureThreshold` if startup is slow
+For comprehensive installation guides, architecture details, and advanced configuration, visit the [Log10x documentation](https://docs.log10x.com).
 
 ## License
 
