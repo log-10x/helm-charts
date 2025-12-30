@@ -86,7 +86,6 @@ data:
     [OUTPUT]
         Name   stdout
         Match  *
-        Format json_lines
     {{- end }}
     {{- end }}
 {{- end }}
