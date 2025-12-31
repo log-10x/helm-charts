@@ -144,3 +144,74 @@ Generates env vars based on roles array and global queue URLs
   value: {{ $values.streamQueueUrl | quote }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Ingress ApiVersion according to Kubernetes version
+*/}}
+{{- define "log10x-streamer.ingress.apiVersion" -}}
+{{- if and (.Capabilities.APIVersions.Has "networking.k8s.io/v1") (semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion) -}}
+networking.k8s.io/v1
+{{- else if and (.Capabilities.APIVersions.Has "networking.k8s.io/v1beta1") (semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion) -}}
+networking.k8s.io/v1beta1
+{{- else -}}
+extensions/v1beta1
+{{- end }}
+{{- end }}
+
+{{/*
+Return if ingress is stable (networking.k8s.io/v1)
+*/}}
+{{- define "log10x-streamer.ingress.isStable" -}}
+{{- eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1" -}}
+{{- end -}}
+
+{{/*
+Return if ingress supports ingressClassName
+*/}}
+{{- define "log10x-streamer.ingress.supportsIngressClassName" -}}
+{{- or (eq (include "log10x-streamer.ingress.isStable" .) "true") (and (eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
+{{- end -}}
+
+{{/*
+Return if ingress supports pathType
+*/}}
+{{- define "log10x-streamer.ingress.supportsPathType" -}}
+{{- or (eq (include "log10x-streamer.ingress.isStable" .) "true") (and (eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
+{{- end -}}
+
+{{/*
+Generate TLS secret name for cluster ingress
+Expects dict with keys: cluster, root
+*/}}
+{{- define "log10x-streamer.cluster.ingress.tlsSecretName" -}}
+{{- $cluster := .cluster -}}
+{{- $root := .root -}}
+{{- $ingressConfig := $cluster.ingress | default dict -}}
+{{- $tlsConfig := $ingressConfig.tls | default dict -}}
+{{- $tlsSource := $tlsConfig.source | default $root.Values.defaultIngress.tls.source -}}
+{{- if eq $tlsSource "secret" -}}
+{{ $tlsConfig.secretName | default $root.Values.defaultIngress.tls.secretName }}
+{{- else if eq $tlsSource "cert-manager" -}}
+{{ include "log10x-streamer.fullname" $root }}-{{ $cluster.name }}-tls-cert
+{{- else if eq $tlsSource "alb" -}}
+""
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if cluster has 'index' role
+Expects dict with keys: cluster
+*/}}
+{{- define "log10x-streamer.cluster.hasIndexRole" -}}
+{{- $cluster := .cluster -}}
+{{- has "index" $cluster.roles -}}
+{{- end -}}
+
+{{/*
+Check if cluster has 'query' role
+Expects dict with keys: cluster
+*/}}
+{{- define "log10x-streamer.cluster.hasQueryRole" -}}
+{{- $cluster := .cluster -}}
+{{- has "query" $cluster.roles -}}
+{{- end -}}

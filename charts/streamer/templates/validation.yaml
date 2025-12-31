@@ -14,3 +14,46 @@
   {{- fail "fluentBit.output.type is required when stream workers are enabled" }}
 {{- end }}
 {{- end }}
+
+{{- /* Validate TLS configuration */ -}}
+{{- $validTlsSources := list "cert-manager" "secret" "alb" }}
+{{- if .Values.defaultIngress.tls }}
+  {{- if .Values.defaultIngress.tls.enabled }}
+    {{- $tlsSource := .Values.defaultIngress.tls.source }}
+    {{- if not (has $tlsSource $validTlsSources) }}
+      {{- fail (printf "defaultIngress.tls.source '%s' is not valid. Must be one of: %s" $tlsSource (join ", " $validTlsSources)) }}
+    {{- end }}
+    {{- if eq $tlsSource "secret" }}
+      {{- if not .Values.defaultIngress.tls.secretName }}
+        {{- fail "defaultIngress.tls.secretName is required when tls.source is 'secret'" }}
+      {{- end }}
+    {{- end }}
+    {{- if eq $tlsSource "cert-manager" }}
+      {{- if not .Values.defaultIngress.tls.certManager.issuerRef.name }}
+        {{- fail "defaultIngress.tls.certManager.issuerRef.name is required when tls.source is 'cert-manager'" }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- /* Validate per-cluster TLS configuration */ -}}
+{{- range .Values.clusters }}
+  {{- if and .ingress .ingress.tls .ingress.tls.enabled }}
+    {{- $tlsSource := .ingress.tls.source }}
+    {{- if $tlsSource }}
+      {{- if not (has $tlsSource $validTlsSources) }}
+        {{- fail (printf "cluster '%s': ingress.tls.source '%s' is not valid. Must be one of: %s" .name $tlsSource (join ", " $validTlsSources)) }}
+      {{- end }}
+      {{- if eq $tlsSource "secret" }}
+        {{- if not .ingress.tls.secretName }}
+          {{- fail (printf "cluster '%s': ingress.tls.secretName is required when tls.source is 'secret'" .name) }}
+        {{- end }}
+      {{- end }}
+      {{- if eq $tlsSource "cert-manager" }}
+        {{- if not .ingress.tls.certManager.issuerRef.name }}
+          {{- fail (printf "cluster '%s': ingress.tls.certManager.issuerRef.name is required when tls.source is 'cert-manager'" .name) }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
