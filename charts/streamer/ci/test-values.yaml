@@ -10,12 +10,17 @@ clusters:
   - name: test-cluster
     roles: ["index", "query", "stream"]
     replicaCount: 1
-    # Set AWS region to prevent SDK initialization errors in CI
+    # Set AWS credentials and region for CI testing
     # The application won't actually connect to AWS services in CI, but needs
-    # a region configured to initialize SQS clients without exceptions
+    # credentials configured to initialize SQS clients without exceptions
+    # The QueueConsumer handles connection failures gracefully
     extraEnv:
       - name: AWS_REGION
         value: "us-east-1"
+      - name: AWS_ACCESS_KEY_ID
+        value: "test-access-key-id"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "test-secret-access-key"
     resources:
       requests:
         cpu: 100m
