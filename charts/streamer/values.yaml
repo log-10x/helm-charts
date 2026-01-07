@@ -438,7 +438,7 @@ scheduledQueries:
           # Optional overrides (defaults from global config if not specified):
           # processingTime: '$=parseDuration("5m")'
           # resultSize: '$=parseBytes("100MB")'
-    
+
     # Example: Daily summary with multiple queries
     # - name: daily-report
     #   schedule: "0 0 * * *"  # Daily at midnight UTC
