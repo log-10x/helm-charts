@@ -6,5 +6,5 @@ maintainers:
     name: dor-levi
 name: streamer-10x
 type: application
-version: 0.6.3
-appVersion: 0.33.3
+version: 0.6.4
+appVersion: 0.33.4
