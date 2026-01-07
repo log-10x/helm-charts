@@ -174,4 +174,34 @@ To view fluent-bit metrics:
   curl http://localhost:2020/api/v1/metrics/prometheus
 {{- end }}
 
+{{- if .Values.scheduledQueries.schedules }}
+
+Scheduled Queries:
+{{- range $schedule := .Values.scheduledQueries.schedules }}
+  - {{ $schedule.name }}
+    Schedule: {{ $schedule.schedule }} (UTC)
+    {{- if $schedule.suspend }}
+    Status: SUSPENDED
+    {{- else }}
+    Status: Active
+    {{- end }}
+    Queries: {{ len $schedule.queries }}
+    {{- range $query := $schedule.queries }}
+      * {{ $query.name | default "unnamed" }}{{ if $query.search }} - {{ $query.search }}{{ end }}
+    {{- end }}
+{{- end }}
+
+To view scheduled query CronJobs:
+  kubectl get cronjobs -l component=scheduled-query
+
+To view job execution history:
+  kubectl get jobs -l component=scheduled-query
+
+To check logs for a specific job:
+  kubectl logs job/<job-name>
+
+To manually trigger a scheduled query:
+  kubectl create job --from=cronjob/{{ include "log10x-streamer.fullname" . }}-scheduled-query-<schedule-name> <manual-job-name>
+{{- end }}
+
 For more information, visit: https://github.com/log-10x/helm-charts

@@ -1,0 +1,58 @@
+{{- if .Values.scheduledQueries.schedules }}
+{{- range $schedule := .Values.scheduledQueries.schedules }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $schedule.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    component: scheduled-query
+    schedule-name: {{ $schedule.name }}
+spec:
+  schedule: {{ $schedule.schedule | quote }}
+  suspend: {{ $schedule.suspend | default false }}
+  successfulJobsHistoryLimit: {{ $schedule.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ $schedule.failedJobsHistoryLimit | default 1 }}
+  concurrencyPolicy: {{ $schedule.concurrencyPolicy | default "Forbid" }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ include "log10x-streamer.name" $ }}
+            component: scheduled-query
+            schedule-name: {{ $schedule.name }}
+        spec:
+          serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
+          restartPolicy: {{ $schedule.restartPolicy | default "OnFailure" }}
+          containers:
+            - name: send-query
+              image: "{{ $.Values.scheduledQueries.image.repository }}:{{ $.Values.scheduledQueries.image.tag }}"
+              imagePullPolicy: {{ $.Values.scheduledQueries.image.pullPolicy }}
+              command: ["/bin/bash"]
+              args:
+                - -c
+                - |
+                  set -e
+
+                  {{- range $query := $schedule.queries }}
+                  echo "Sending query: {{ $query.name | default "unnamed" }}"
+
+                  aws sqs send-message \
+                    --queue-url "{{ $.Values.queryQueueUrl }}" \
+                    --message-body '{{ $query | toJson }}'
+
+                  echo "Query sent successfully: {{ $query.name | default "unnamed" }}"
+                  {{- end }}
+
+                  echo "All queries sent successfully for schedule: {{ $schedule.name }}"
+              env:
+                - name: AWS_DEFAULT_REGION
+                  value: {{ $schedule.awsRegion | default "us-east-1" | quote }}
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

@@ -416,6 +416,51 @@ fluentBit:
   #       bucket my-custom-bucket
   #       region us-west-2
 
+
+################################################################################
+# SCHEDULED QUERIES
+################################################################################
+
+# Kubernetes CronJobs that send predefined queries to the query SQS queue
+# Useful for recurring reports, monitoring checks, or automated data exports
+scheduledQueries:
+  # Array of schedules - each creates one CronJob resource
+  # Each CronJob runs on its defined schedule and sends one or more queries to SQS
+  schedules:
+    # Example: Hourly error checks
+    - name: hourly-errors
+      schedule: "0 * * * *"  # Every hour at minute 0 (UTC timezone)
+      queries:
+        - name: "error-logs"
+          from: '$=now("-1h")'
+          to: '$=now()'
+          search: 'severity_level=="ERROR"'
+          # Optional overrides (defaults from global config if not specified):
+          # processingTime: '$=parseDuration("5m")'
+          # resultSize: '$=parseBytes("100MB")'
+
+    # Example: Daily summary with multiple queries
+    # - name: daily-report
+    #   schedule: "0 0 * * *"  # Daily at midnight UTC
+    #   suspend: false  # Set true to temporarily disable
+    #   queries:
+    #     - name: "daily-errors"
+    #       from: '$=now("-24h")'
+    #       to: '$=now()'
+    #       search: 'severity_level=="ERROR"'
+    #     - name: "daily-warnings"
+    #       from: '$=now("-24h")'
+    #       to: '$=now()'
+    #       search: 'severity_level=="WARN"'
+
+  # Container image for sending SQS messages
+  # Uses AWS CLI to send messages to the query queue
+  image:
+    repository: amazon/aws-cli
+    tag: "2.15.17"
+    pullPolicy: IfNotPresent
+
+
 ################################################################################
 # NETWORKING
 ################################################################################

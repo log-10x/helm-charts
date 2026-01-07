@@ -57,3 +57,29 @@
     {{- end }}
   {{- end }}
 {{- end }}
+
+{{- /* Validate scheduled queries configuration */ -}}
+{{- if .Values.scheduledQueries.schedules }}
+{{- if not .Values.queryQueueUrl }}
+{{- fail "scheduledQueries.schedules is configured but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
+{{- end }}
+{{- range $schedule := .Values.scheduledQueries.schedules }}
+{{- if not $schedule.name }}
+{{- fail "Each scheduledQueries.schedules entry must have a 'name' field" }}
+{{- end }}
+{{- if not $schedule.schedule }}
+{{- fail (printf "scheduledQueries.schedules[%s] must have a 'schedule' field (cron expression)" $schedule.name) }}
+{{- end }}
+{{- if not $schedule.queries }}
+{{- fail (printf "scheduledQueries.schedules[%s] must have a 'queries' array with at least one query" $schedule.name) }}
+{{- end }}
+{{- range $idx, $query := $schedule.queries }}
+{{- if not $query.from }}
+{{- fail (printf "scheduledQueries.schedules[%s].queries[%d] missing required field 'from'" $schedule.name $idx) }}
+{{- end }}
+{{- if not $query.to }}
+{{- fail (printf "scheduledQueries.schedules[%s].queries[%d] missing required field 'to'" $schedule.name $idx) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

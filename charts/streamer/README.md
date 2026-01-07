@@ -162,6 +162,80 @@ fluentBit:
         logStreamPrefix: stream-
 ```
 
+### Scheduled Queries
+
+The chart supports running scheduled queries as Kubernetes CronJobs. Each CronJob sends predefined query messages to the query SQS queue on a specified schedule.
+
+**Use cases:**
+- Recurring error reports (hourly, daily)
+- Scheduled monitoring checks
+- Automated data exports
+- Periodic audit queries
+
+**Configuration:**
+
+```yaml
+scheduledQueries:
+  schedules:
+    - name: hourly-errors
+      schedule: "0 * * * *"  # Every hour at minute 0 (UTC)
+      queries:
+        - name: "error-logs"
+          from: '$=now("-1h")'
+          to: '$=now()'
+          search: 'severity_level=="ERROR"'
+          # Optional fields (10x config provides defaults):
+          # processingTime: '$=parseDuration("5m")'
+          # resultSize: '$=parseBytes("100MB")'
+
+    - name: daily-summary
+      schedule: "0 0 * * *"  # Daily at midnight UTC
+      suspend: false  # Can be set to true to temporarily disable
+      queries:
+        - name: "daily-errors"
+          from: '$=now("-24h")'
+          to: '$=now()'
+          search: 'severity_level=="ERROR"'
+        - name: "daily-warnings"
+          from: '$=now("-24h")'
+          to: '$=now()'
+          search: 'severity_level=="WARN"'
+```
+
+**Expression Syntax:**
+
+Queries use Log10x YAML-style configuration expressions that are parsed by the query server:
+
+- **Time**: `$=now()` - current time, `$=now("-1h")` - 1 hour ago, `$=now("-24h")` - 24 hours ago, `$=now("-7d")` - 7 days ago
+- **Duration**: `$=parseDuration("5m")` - 5 minutes, supports: `ms`, `s`, `m`, `h`
+- **Bytes**: `$=parseBytes("100MB")` - size in bytes, supports: `B`, `KB`, `MB`, `GB`
+
+**Default Values:**
+
+The Log10x query server automatically applies defaults from your pipeline configuration for any fields not explicitly specified in the query. This means you only need to specify `from`, `to`, and optionally `search` or other query-specific fields.
+
+**Important Notes:**
+- **Timezone**: All cron schedules run in UTC
+- **Multiple queries per schedule**: Each schedule can define multiple queries that are sent sequentially
+- **IAM permissions**: CronJobs use the same service account as streamer pods. The IRSA role that grants `sqs:ReceiveMessage` for query workers automatically provides `sqs:SendMessage` permission needed by CronJobs
+- **Required fields per query**: Only `from` and `to` are required - the query server applies configured defaults for all other fields
+
+**Monitoring scheduled queries:**
+
+```bash
+# List all CronJobs
+kubectl get cronjobs -l component=scheduled-query
+
+# View recent job executions
+kubectl get jobs -l component=scheduled-query
+
+# Check logs for a specific job
+kubectl logs job/<job-name>
+
+# Manually trigger a scheduled query
+kubectl create job --from=cronjob/<release>-streamer-10x-scheduled-query-<schedule-name> manual-run
+```
+
 ## AWS IAM Configuration
 
 Configure IRSA for AWS service access:
