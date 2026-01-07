@@ -426,7 +426,7 @@ fluentBit:
 scheduledQueries:
   # Array of schedules - each creates one CronJob resource
   # Each CronJob runs on its defined schedule and sends one or more queries to SQS
-  schedules: []
+  schedules:
     # Example: Hourly error checks
     - name: hourly-errors
       schedule: "0 * * * *"  # Every hour at minute 0 (UTC timezone)
