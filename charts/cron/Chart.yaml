@@ -6,5 +6,5 @@ maintainers:
     name: dor-levi
 name: cron-10x
 type: application
-version: 0.5.35
-appVersion: 0.34.0
+version: 0.5.36
+appVersion: 0.34.1
