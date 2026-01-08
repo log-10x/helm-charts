@@ -223,32 +223,35 @@ clusters:
       # targetMemoryUtilizationPercentage: 80
 
     # Health probe configuration
-    # Quarkus provides built-in health endpoints at /q/health/*
+    # Custom non-reactive health endpoints to avoid event loop blocking under load
+    # /health/live - Simple liveness check (just returns UP)
+    # /health/ready - Load-based readiness check (marks NOT READY when near capacity)
+    # /health/started - Simple startup check (confirms app initialization)
     livenessProbe:
       httpGet:
-        path: /q/health/live
+        path: /health/live
         port: http
       initialDelaySeconds: 30
       periodSeconds: 10
-      timeoutSeconds: 5
+      timeoutSeconds: 10
       failureThreshold: 3
 
     readinessProbe:
       httpGet:
-        path: /q/health/ready
+        path: /health/ready
         port: http
       initialDelaySeconds: 10
       periodSeconds: 5
-      timeoutSeconds: 3
+      timeoutSeconds: 10
       failureThreshold: 3
 
     startupProbe:
       httpGet:
-        path: /q/health/started
+        path: /health/started
         port: http
       initialDelaySeconds: 0
       periodSeconds: 10
-      timeoutSeconds: 3
+      timeoutSeconds: 5
       failureThreshold: 30  # 300s (5 min) maximum startup time
 
     nodeSelector: {}
