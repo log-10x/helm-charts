@@ -1,20 +1,20 @@
-{{- if gt (len .Values.scheduledQueries.schedules) 0 }}
-{{- range $schedule := .Values.scheduledQueries.schedules }}
+{{- if and .Values.scheduledQueries .Values.scheduledQueries.enabled .Values.scheduledQueries.jobs (gt (len .Values.scheduledQueries.jobs) 0) }}
+{{- range $job := .Values.scheduledQueries.jobs }}
 ---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "log10x-streamer.fullname" $ }}-{{ $schedule.name }}
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $job.name }}
   labels:
     {{- include "log10x-streamer.labels" $ | nindent 4 }}
     component: scheduled-query
-    schedule-name: {{ $schedule.name }}
+    job-name: {{ $job.name }}
 spec:
-  schedule: {{ $schedule.schedule | quote }}
-  suspend: {{ $schedule.suspend | default false }}
-  successfulJobsHistoryLimit: {{ $schedule.successfulJobsHistoryLimit | default 3 }}
-  failedJobsHistoryLimit: {{ $schedule.failedJobsHistoryLimit | default 1 }}
-  concurrencyPolicy: {{ $schedule.concurrencyPolicy | default "Forbid" }}
+  schedule: {{ $job.schedule | quote }}
+  suspend: {{ $job.suspend | default false }}
+  successfulJobsHistoryLimit: {{ $job.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ $job.failedJobsHistoryLimit | default 1 }}
+  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
   jobTemplate:
     spec:
       template:
@@ -22,10 +22,10 @@ spec:
           labels:
             app: {{ include "log10x-streamer.name" $ }}
             component: scheduled-query
-            schedule-name: {{ $schedule.name }}
+            job-name: {{ $job.name }}
         spec:
           serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
-          restartPolicy: {{ $schedule.restartPolicy | default "OnFailure" }}
+          restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           containers:
             - name: send-query
               image: "{{ $.Values.scheduledQueries.image.repository }}:{{ $.Values.scheduledQueries.image.tag }}"
@@ -36,7 +36,7 @@ spec:
                 - |
                   set -e
 
-                  {{- range $query := $schedule.queries }}
+                  {{- range $query := $job.queries }}
                   echo "Sending query: {{ $query.name | default "unnamed" }}"
 
                   aws sqs send-message \
@@ -46,10 +46,10 @@ spec:
                   echo "Query sent successfully: {{ $query.name | default "unnamed" }}"
                   {{- end }}
 
-                  echo "All queries sent successfully for schedule: {{ $schedule.name }}"
+                  echo "All queries sent successfully for job: {{ $job.name }}"
               env:
                 - name: AWS_DEFAULT_REGION
-                  value: {{ $schedule.awsRegion | default "us-east-1" | quote }}
+                  value: {{ $job.awsRegion | default "us-east-1" | quote }}
           {{- with $.Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}

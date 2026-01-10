@@ -178,8 +178,10 @@ The chart supports running scheduled queries as Kubernetes CronJobs. Each CronJo
 **Configuration:**
 
 ```yaml
+# Enable scheduled queries (default: true)
 scheduledQueries:
-  schedules:
+  enabled: true  # Set to false to disable all scheduled queries
+  jobs:
     - name: hourly-errors
       schedule: "0 * * * *"  # Every hour at minute 0 (UTC)
       queries:
@@ -193,7 +195,7 @@ scheduledQueries:
 
     - name: daily-summary
       schedule: "0 0 * * *"  # Daily at midnight UTC
-      suspend: false  # Can be set to true to temporarily disable
+      suspend: false  # Can be set to true to temporarily disable this specific job
       queries:
         - name: "daily-errors"
           from: '$=now("-24h")'
@@ -203,6 +205,19 @@ scheduledQueries:
           from: '$=now("-24h")'
           to: '$=now()'
           search: 'severity_level=="WARN"'
+```
+
+**Disabling scheduled queries:**
+
+```yaml
+# Option 1: Disable all scheduled queries with enabled flag
+scheduledQueries:
+  enabled: false
+
+# Option 2: Enable but provide no jobs
+scheduledQueries:
+  enabled: true
+  jobs: []
 ```
 
 **Expression Syntax:**
@@ -219,7 +234,7 @@ The Log10x query server automatically applies defaults from your pipeline config
 
 **Important Notes:**
 - **Timezone**: All cron schedules run in UTC
-- **Multiple queries per schedule**: Each schedule can define multiple queries that are sent sequentially
+- **Multiple queries per job**: Each job can define multiple queries that are sent sequentially
 - **IAM permissions**: CronJobs use the same service account as streamer pods. The IRSA role that grants `sqs:ReceiveMessage` for query workers automatically provides `sqs:SendMessage` permission needed by CronJobs
 - **Required fields per query**: Only `from` and `to` are required - the query server applies configured defaults for all other fields
 
@@ -235,8 +250,8 @@ kubectl get jobs -l component=scheduled-query
 # Check logs for a specific job
 kubectl logs job/<job-name>
 
-# Manually trigger a scheduled query
-kubectl create job --from=cronjob/<release>-streamer-10x-scheduled-query-<schedule-name> manual-run
+# Manually trigger a scheduled query (replace <job-name> with the name from scheduledQueries.jobs[].name)
+kubectl create job --from=cronjob/<release>-streamer-10x-<job-name> manual-run
 ```
 
 ## AWS IAM Configuration
