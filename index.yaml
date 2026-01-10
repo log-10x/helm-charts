@@ -536,6 +536,21 @@ entries:
   streamer-10x:
   - apiVersion: v2
     appVersion: 0.34.1
+    created: "2026-01-10T15:10:27.041995815Z"
+    description: Official Log10x helm chart for SQS-based Cloud Streamer Quarkus deployment
+      with optional Ingress support
+    digest: 0fed2e2090888c091ecb00ec76dbf19445166432004469e08d3b494dcf2204af
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: dor.levi@log10x.com
+      name: dor-levi
+    name: streamer-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.7.1/streamer-10x-0.7.1.tgz
+    version: 0.7.1
+  - apiVersion: v2
+    appVersion: 0.34.1
     created: "2026-01-10T14:48:13.6993956Z"
     description: Official Log10x helm chart for SQS-based Cloud Streamer Quarkus deployment
       with optional Ingress support
@@ -1034,4 +1049,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.1.0/streamer-10x-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-10T14:48:13.699720434Z"
+generated: "2026-01-10T15:10:27.042317512Z"
