@@ -466,9 +466,13 @@ fluentBit:
 # Kubernetes CronJobs that send predefined queries to the query SQS queue
 # Useful for recurring reports, monitoring checks, or automated data exports
 scheduledQueries:
-  # Array of schedules - each creates one CronJob resource
+  # Enable or disable all scheduled query CronJobs
+  # Set to false to disable scheduled queries entirely
+  enabled: true
+
+  # Array of scheduled query jobs - each creates one CronJob resource
   # Each CronJob runs on its defined schedule and sends one or more queries to SQS
-  schedules:
+  jobs:
     # Example: Hourly error checks
     - name: hourly-errors
       schedule: "0 * * * *"  # Every hour at minute 0 (UTC timezone)

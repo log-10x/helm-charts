@@ -59,26 +59,31 @@
 {{- end }}
 
 {{- /* Validate scheduled queries configuration */ -}}
-{{- if gt (len .Values.scheduledQueries.schedules) 0 }}
+{{- if and .Values.scheduledQueries .Values.scheduledQueries.enabled }}
+{{- if not (kindIs "map" .Values.scheduledQueries) }}
+{{- fail "scheduledQueries must be an object with 'enabled' and 'jobs' fields. Use 'scheduledQueries: { enabled: false }' or omit scheduledQueries entirely to disable scheduled queries." }}
+{{- end }}
+{{- if and .Values.scheduledQueries.jobs (gt (len .Values.scheduledQueries.jobs) 0) }}
 {{- if not .Values.queryQueueUrl }}
-{{- fail "scheduledQueries.schedules is configured but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
+{{- fail "scheduledQueries.enabled is true and scheduledQueries.jobs is configured, but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
 {{- end }}
-{{- range $schedule := .Values.scheduledQueries.schedules }}
-{{- if not $schedule.name }}
-{{- fail "Each scheduledQueries.schedules entry must have a 'name' field" }}
+{{- range $job := .Values.scheduledQueries.jobs }}
+{{- if not $job.name }}
+{{- fail "Each scheduledQueries.jobs entry must have a 'name' field" }}
 {{- end }}
-{{- if not $schedule.schedule }}
-{{- fail (printf "scheduledQueries.schedules[%s] must have a 'schedule' field (cron expression)" $schedule.name) }}
+{{- if not $job.schedule }}
+{{- fail (printf "scheduledQueries.jobs[%s] must have a 'schedule' field (cron expression)" $job.name) }}
 {{- end }}
-{{- if not $schedule.queries }}
-{{- fail (printf "scheduledQueries.schedules[%s] must have a 'queries' array with at least one query" $schedule.name) }}
+{{- if not $job.queries }}
+{{- fail (printf "scheduledQueries.jobs[%s] must have a 'queries' array with at least one query" $job.name) }}
 {{- end }}
-{{- range $idx, $query := $schedule.queries }}
+{{- range $idx, $query := $job.queries }}
 {{- if not $query.from }}
-{{- fail (printf "scheduledQueries.schedules[%s].queries[%d] missing required field 'from'" $schedule.name $idx) }}
+{{- fail (printf "scheduledQueries.jobs[%s].queries[%d] missing required field 'from'" $job.name $idx) }}
 {{- end }}
 {{- if not $query.to }}
-{{- fail (printf "scheduledQueries.schedules[%s].queries[%d] missing required field 'to'" $schedule.name $idx) }}
+{{- fail (printf "scheduledQueries.jobs[%s].queries[%d] missing required field 'to'" $job.name $idx) }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
