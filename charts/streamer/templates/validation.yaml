@@ -59,7 +59,7 @@
 {{- end }}
 
 {{- /* Validate scheduled queries configuration */ -}}
-{{- if .Values.scheduledQueries.schedules }}
+{{- if gt (len .Values.scheduledQueries.schedules) 0 }}
 {{- if not .Values.queryQueueUrl }}
 {{- fail "scheduledQueries.schedules is configured but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
 {{- end }}
