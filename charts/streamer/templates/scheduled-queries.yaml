@@ -1,4 +1,4 @@
-{{- if .Values.scheduledQueries.schedules }}
+{{- if gt (len .Values.scheduledQueries.schedules) 0 }}
 {{- range $schedule := .Values.scheduledQueries.schedules }}
 ---
 apiVersion: batch/v1

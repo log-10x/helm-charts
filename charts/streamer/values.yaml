@@ -202,6 +202,34 @@ clusters:
       # - name: AWS_REGION
       #   value: "us-east-1"
 
+    # Additional volumes to mount into the main container
+    # These volumes will be mounted in addition to any volumes automatically
+    # configured by the chart (e.g., github-data, fluent-config)
+    # Useful for:
+    # - Persistent storage for heap dumps (PVC)
+    # - ConfigMaps or Secrets with additional configuration
+    # - EmptyDir for scratch space
+    extraVolumes: []
+      # Example: Persistent heap dump storage
+      # - name: heap-dumps
+      #   persistentVolumeClaim:
+      #     claimName: indexer-heap-dumps
+      # Example: ConfigMap with custom config
+      # - name: custom-config
+      #   configMap:
+      #     name: my-config
+
+    # Volume mounts for extraVolumes
+    # These define where extraVolumes are mounted in the container filesystem
+    extraVolumeMounts: []
+      # Example: Mount heap dump volume
+      # - name: heap-dumps
+      #   mountPath: /heap-dumps
+      # Example: Mount custom config
+      # - name: custom-config
+      #   mountPath: /etc/custom-config
+      #   readOnly: true
+
     # Resource requests and limits
     # IMPORTANT: Set these based on your pipeline requirements
     # Index operations typically require more resources than query/stream
@@ -286,6 +314,17 @@ clusters:
 #     roles: ["index"]
 #     replicaCount: 2
 #     maxParallelRequests: 5  # Indexing is resource-intensive
+#     # Example: Persistent storage for heap dumps when OOM occurs
+#     extraEnv:
+#       - name: JAVA_OPTS_APPEND
+#         value: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps/heapdump.hprof"
+#     extraVolumes:
+#       - name: heap-dumps
+#         persistentVolumeClaim:
+#           claimName: indexer-heap-dumps
+#     extraVolumeMounts:
+#       - name: heap-dumps
+#         mountPath: /heap-dumps
 #     resources:
 #       requests:
 #         cpu: 2000m

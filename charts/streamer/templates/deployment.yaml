@@ -103,10 +103,15 @@ spec:
           {{- end }}
           resources:
             {{- toYaml $cluster.resources | nindent 12 }}
-          {{- if include "log10x-streamer.githubEnabled" $ }}
+          {{- if or (include "log10x-streamer.githubEnabled" $) $cluster.extraVolumeMounts }}
           volumeMounts:
+          {{- if include "log10x-streamer.githubEnabled" $ }}
             - name: github-data
               mountPath: /data
+          {{- end }}
+          {{- with $cluster.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
         {{- if has "stream" $cluster.roles }}
         - name: fluent-bit
@@ -170,7 +175,7 @@ spec:
             - name: fluent-buffer
               mountPath: /tmp/fluent-bit
         {{- end }}
-      {{- if or (include "log10x-streamer.githubEnabled" $) (has "stream" $cluster.roles) }}
+      {{- if or (include "log10x-streamer.githubEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
       volumes:
       {{- if include "log10x-streamer.githubEnabled" $ }}
         - name: github-data
@@ -183,6 +188,9 @@ spec:
         - name: fluent-buffer
           emptyDir:
             sizeLimit: {{ $.Values.fluentBit.bufferStorageSize }}
+      {{- end }}
+      {{- with $cluster.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- end }}
       {{- with $cluster.nodeSelector }}

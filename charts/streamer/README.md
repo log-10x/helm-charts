@@ -128,6 +128,9 @@ helm install my-streamer log-10x/streamer-10x -f values.yaml
 | `clusters[].roles` | Array: `["index"]`, `["query"]`, `["stream"]`, or combinations | Required |
 | `clusters[].replicaCount` | Number of pod replicas | `1` |
 | `clusters[].maxParallelRequests` | Max concurrent tasks per pod | `10` |
+| `clusters[].extraEnv` | Additional environment variables for this cluster | `[]` |
+| `clusters[].extraVolumes` | Additional volumes to mount (PVC, ConfigMap, Secret, etc.) | `[]` |
+| `clusters[].extraVolumeMounts` | Mount paths for extraVolumes | `[]` |
 | `clusters[].resources` | CPU/Memory requests and limits | `{}` |
 | `clusters[].autoscaling.enabled` | Enable HPA | `false` |
 
@@ -254,6 +257,76 @@ serviceAccount:
 - CloudWatch Logs (if using): `CreateLogGroup`, `CreateLogStream`, `PutLogEvents`
 
 For detailed IAM policy examples, see the [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws) module.
+
+## Advanced Configuration
+
+### Persistent Storage for Heap Dumps
+
+For debugging memory issues, you can configure persistent storage for Java heap dumps that occur on OutOfMemoryError:
+
+1. **Create a PersistentVolumeClaim:**
+
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: indexer-heap-dumps
+  namespace: my-namespace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: gp3
+```
+
+2. **Configure the cluster to use the volume:**
+
+```yaml
+clusters:
+  - name: indexer
+    roles: ["index"]
+    extraEnv:
+      - name: JAVA_OPTS_APPEND
+        value: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps/heapdump.hprof -Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager -Djdk.httpclient.allowRestrictedHeaders=host -Dfile.encoding=UTF-8"
+    extraVolumes:
+      - name: heap-dumps
+        persistentVolumeClaim:
+          claimName: indexer-heap-dumps
+    extraVolumeMounts:
+      - name: heap-dumps
+        mountPath: /heap-dumps
+```
+
+3. **Retrieve heap dumps after an OOM:**
+
+```bash
+# List heap dumps
+kubectl exec -n my-namespace <indexer-pod-name> -- ls -lh /heap-dumps/
+
+# Copy heap dump to local machine for analysis
+kubectl cp my-namespace/<indexer-pod-name>:/heap-dumps/heapdump.hprof ./heapdump.hprof
+```
+
+**Note:** When overriding `JAVA_OPTS_APPEND`, you must include all required Quarkus options (shown in the example above) to ensure the application runs correctly.
+
+### Custom Configuration with ConfigMaps
+
+You can mount additional configuration files using extraVolumes:
+
+```yaml
+clusters:
+  - name: indexer
+    extraVolumes:
+      - name: custom-config
+        configMap:
+          name: my-custom-config
+    extraVolumeMounts:
+      - name: custom-config
+        mountPath: /etc/custom-config
+        readOnly: true
+```
 
 ## Monitoring
 
