@@ -8,7 +8,7 @@ metadata:
   labels:
     {{- include "log10x-streamer.labels" $ | nindent 4 }}
     component: scheduled-query
-    job-name: {{ $job.name }}
+    query-job-name: {{ $job.name }}
 spec:
   schedule: {{ $job.schedule | quote }}
   suspend: {{ $job.suspend | default false }}
@@ -22,7 +22,7 @@ spec:
           labels:
             app: {{ include "log10x-streamer.name" $ }}
             component: scheduled-query
-            job-name: {{ $job.name }}
+            query-job-name: {{ $job.name }}
         spec:
           serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
