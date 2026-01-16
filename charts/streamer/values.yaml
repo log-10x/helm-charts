@@ -375,13 +375,15 @@ fluentBit:
   logLevel: info
 
   # Resource limits for fluent-bit container
+  # Industry standard: 100-200m CPU, 128-256Mi memory
+  # Fluent-bit is lightweight - uses ~1-10m CPU when idle, spikes during log bursts
   resources:
     requests:
       memory: 128Mi
-      cpu: 200m
+      cpu: 100m
     limits:
-      memory: 512Mi
-      cpu: 500m
+      memory: 256Mi
+      cpu: 200m
 
   # Buffer storage size limit
   # This is the maximum disk space fluent-bit can use for buffering
