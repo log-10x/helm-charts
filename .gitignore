@@ -1,0 +1,19 @@
+.vscode
+# Helm chart automated files
+/charts/*/requirements.lock
+
+# OSx generated
+.DS_Store
+
+# Secrets and credentials
+*.env
+*.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+secrets.yaml
+*-secret.yaml
+kubeconfig
+.kube/

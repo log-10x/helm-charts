@@ -1,0 +1,38 @@
+{{- if .Release.IsInstall -}}
+Congratulations! The following Log10x pipeline jobs have been successfully installed:
+
+{{- else if .Release.IsUpgrade -}}
+The following Log10x pipeline jobs have been successfully upgraded:
+
+{{- end }}
+
+{{- range .Values.jobs }}
+
+- Job Name: {{ .name }}
+  Schedule: {{ .schedule }}
+  Pipeline Args: {{ .args | quote }}
+  {{- with .configFiles }}
+  Config Files:
+  {{- range . }}
+    - {{ .name }}
+  {{- end }}
+  {{- end }}
+
+{{- end }}
+
+To monitor these Log10x pipeline jobs and their executions, you can use the following commands:
+
+{{- range .Values.jobs }}
+
+1. **Check CronJob details for {{ .name }}:**
+   kubectl get cronjob {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+
+2. **View the logs of the last job for {{ .name }}:**
+   kubectl logs -l log10x-cron-name={{ include "log10x-cron.fullname" $ }}-{{ .name }} --tail=50
+
+3. **Check the status of the last run for {{ .name }}:**
+   kubectl get jobs --sort-by=.metadata.creationTimestamp | grep {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+
+{{- end }}
+
+If you need to update the schedules or commands, you can upgrade the release with the appropriate `--set` flags.

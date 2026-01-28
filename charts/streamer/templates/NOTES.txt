@@ -1,0 +1,207 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+The following clusters have been deployed:
+{{- range $index, $cluster := .Values.clusters }}
+{{- $replicas := $cluster.replicaCount | default 1 | int }}
+  - {{ $cluster.name }} ({{ $replicas }} replica{{ if ne $replicas 1 }}s{{ end }})
+    {{- if has "index" $cluster.roles }}
+    * Index: Enabled
+    {{- end }}
+    {{- if has "query" $cluster.roles }}
+    * Query: Enabled
+    {{- end }}
+    {{- if has "stream" $cluster.roles }}
+    * Stream: Enabled
+    {{- end }}
+{{- end }}
+
+To check the status of your deployments:
+  kubectl get deployments -l app={{ include "log10x-streamer.name" . }}
+
+To view the logs:
+{{- range $index, $cluster := .Values.clusters }}
+  kubectl logs -l cluster={{ $cluster.name }} --tail=100 -f
+{{- end }}
+
+To check pod health:
+  kubectl get pods -l app={{ include "log10x-streamer.name" . }}
+
+{{- $hasAnyIngress := false }}
+{{- range .Values.clusters }}
+  {{- $ingressConfig := .ingress | default dict }}
+  {{- $ingressEnabled := $.Values.defaultIngress.enabled }}
+  {{- if hasKey $ingressConfig "enabled" -}}
+    {{- $ingressEnabled = $ingressConfig.enabled -}}
+  {{- end }}
+  {{- if $ingressEnabled }}
+    {{- if or (has "index" .roles) (has "query" .roles) }}
+      {{- $hasAnyIngress = true }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+{{- if $hasAnyIngress }}
+
+Ingress Configuration:
+{{- $hasAnyAuth := false }}
+{{- range $index, $cluster := .Values.clusters }}
+{{- $ingressConfig := $cluster.ingress | default dict }}
+{{- $ingressEnabled := $.Values.defaultIngress.enabled }}
+{{- if hasKey $ingressConfig "enabled" -}}
+  {{- $ingressEnabled = $ingressConfig.enabled -}}
+{{- end }}
+{{- if $ingressEnabled }}
+{{- $hasIndexRole := has "index" $cluster.roles }}
+{{- $hasQueryRole := has "query" $cluster.roles }}
+{{- if or $hasIndexRole $hasQueryRole }}
+{{- $host := $ingressConfig.host | default $.Values.defaultIngress.host }}
+{{- $tlsEnabled := false }}
+{{- $tlsSource := "" }}
+{{- $tlsConfig := $ingressConfig.tls | default dict }}
+{{- if $tlsConfig }}
+  {{- $tlsEnabled = $tlsConfig.enabled | default $.Values.defaultIngress.tls.enabled }}
+  {{- $tlsSource = $tlsConfig.source | default $.Values.defaultIngress.tls.source }}
+{{- else }}
+  {{- $tlsEnabled = $.Values.defaultIngress.tls.enabled }}
+  {{- $tlsSource = $.Values.defaultIngress.tls.source }}
+{{- end }}
+{{- $protocol := "http" }}
+{{- if $tlsEnabled }}
+  {{- $protocol = "https" }}
+{{- end }}
+{{- $defaultAnnotations := $.Values.defaultIngress.annotations | default dict }}
+{{- $clusterAnnotations := $ingressConfig.annotations | default dict }}
+{{- $mergedAnnotations := merge $clusterAnnotations $defaultAnnotations }}
+{{- if $mergedAnnotations }}
+  {{- $hasAnyAuth = true }}
+{{- end }}
+  - Cluster: {{ $cluster.name }}
+    Host: {{ $host }}
+    {{- if $tlsEnabled }}
+    TLS: Enabled ({{ $tlsSource }})
+    {{- else }}
+    TLS: Disabled (HTTP only - NOT recommended for production!)
+    {{- end }}
+    Exposed endpoints:
+    {{- if $hasIndexRole }}
+      * POST {{ $protocol }}://{{ $host }}/streamer/index - Index files
+    {{- end }}
+    {{- if $hasQueryRole }}
+      * POST {{ $protocol }}://{{ $host }}/streamer/query - Run queries
+    {{- end }}
+      * GET {{ $protocol }}://{{ $host }}/metrics/load - View load metrics
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if not $hasAnyAuth }}
+
+⚠️  SECURITY WARNING: No authentication configured on ingress!
+
+  Your REST endpoints are currently exposed WITHOUT authentication.
+  Consider adding authentication via ingress annotations:
+
+  Basic Auth (NGINX):
+    defaultIngress.annotations:
+      nginx.ingress.kubernetes.io/auth-type: basic
+      nginx.ingress.kubernetes.io/auth-secret: <secret-name>
+
+  AWS Cognito (ALB):
+    defaultIngress.annotations:
+      alb.ingress.kubernetes.io/auth-type: cognito
+      alb.ingress.kubernetes.io/auth-idp-cognito: '{"userPoolArn":"...","userPoolClientId":"...","userPoolDomain":"..."}'
+
+  IP Whitelist (NGINX):
+    defaultIngress.annotations:
+      nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,192.168.1.0/24"
+
+  For more security options, visit: https://github.com/log-10x/helm-charts/tree/main/charts/streamer
+{{- end }}
+
+To view ingress resources:
+  kubectl get ingress -l app={{ include "log10x-streamer.name" . }}
+{{- end }}
+
+{{- $hasStreamWorker := false }}
+{{- range .Values.clusters }}
+  {{- if has "stream" .roles }}
+    {{- $hasStreamWorker = true }}
+  {{- end }}
+{{- end }}
+{{- if $hasStreamWorker }}
+
+Fluent-bit Configuration:
+- Stream workers are configured to send events to: {{ .Values.fluentBit.output.type | default "stdout" }}
+{{- if eq .Values.fluentBit.output.type "stdout" }}
+  - Logs are sent to container stdout (aggregated by Kubernetes log collector)
+{{- else if eq .Values.fluentBit.output.type "s3" }}
+  {{- if .Values.fluentBit.output.config.s3.bucket }}
+  - S3 Bucket: {{ .Values.fluentBit.output.config.s3.bucket }}
+  - Region: {{ .Values.fluentBit.output.config.s3.region | default "us-east-1" }}
+  - Authentication: IRSA (IAM Role for Service Account)
+  {{- else }}
+  - WARNING: S3 bucket not configured! Set fluentBit.output.config.s3.bucket
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "cloudwatch" }}
+  - CloudWatch Log Group: {{ .Values.fluentBit.output.config.cloudwatch.logGroupName }}
+  - Region: {{ .Values.fluentBit.output.config.cloudwatch.region | default "us-east-1" }}
+  - Authentication: IRSA (IAM Role for Service Account)
+{{- else if eq .Values.fluentBit.output.type "elasticsearch" }}
+  - Elasticsearch Host: {{ .Values.fluentBit.output.config.elasticsearch.host }}:{{ .Values.fluentBit.output.config.elasticsearch.port | default 9200 }}
+  - Index: {{ .Values.fluentBit.output.config.elasticsearch.index | default "fluent-bit" }}
+  {{- if not .Values.fluentBit.output.config.elasticsearch.httpUser }}
+  - WARNING: Elasticsearch credentials not set! Use --set-string fluentBit.output.config.elasticsearch.httpUser/httpPasswd
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "splunk" }}
+  - Splunk Host: {{ .Values.fluentBit.output.config.splunk.host }}:{{ .Values.fluentBit.output.config.splunk.port | default 8088 }}
+  {{- if not .Values.fluentBit.output.config.splunk.token }}
+  - WARNING: Splunk token not set! Use --set-string fluentBit.output.config.splunk.token=<token>
+  {{- end }}
+{{- else if eq .Values.fluentBit.output.type "datadog" }}
+  - Datadog Host: {{ .Values.fluentBit.output.config.datadog.host | default "http-intake.logs.datadoghq.com" }}
+  - Service: {{ .Values.fluentBit.output.config.datadog.service | default "log10x-streamer" }}
+  {{- if not .Values.fluentBit.output.config.datadog.apiKey }}
+  - WARNING: Datadog API key not set! Use --set-string fluentBit.output.config.datadog.apiKey=<key>
+  {{- end }}
+{{- end }}
+
+To check fluent-bit health on stream workers:
+  kubectl logs -l cluster=<stream-cluster-name> -c fluent-bit --tail=50
+
+To view fluent-bit metrics:
+  kubectl port-forward <stream-pod-name> 2020:2020
+  curl http://localhost:2020/api/v1/metrics/prometheus
+{{- end }}
+
+{{- if .Values.scheduledQueries.jobs }}
+
+Scheduled Queries:
+{{- range $job := .Values.scheduledQueries.jobs }}
+  - {{ $job.name }}
+    Schedule: {{ $job.schedule }} (UTC)
+    {{- if $job.suspend }}
+    Status: SUSPENDED
+    {{- else }}
+    Status: Active
+    {{- end }}
+    Queries: {{ len $job.queries }}
+    {{- range $query := $job.queries }}
+      * {{ $query.name | default "unnamed" }}{{ if $query.search }} - {{ $query.search }}{{ end }}
+    {{- end }}
+{{- end }}
+
+To view scheduled query CronJobs:
+  kubectl get cronjobs -l component=scheduled-query
+
+To view job execution history:
+  kubectl get jobs -l component=scheduled-query
+
+To check logs for a specific job:
+  kubectl logs job/<job-name>
+
+To manually trigger a scheduled query:
+  kubectl create job --from=cronjob/{{ include "log10x-streamer.fullname" . }}-scheduled-query-<schedule-name> <manual-job-name>
+{{- end }}
+
+For more information, visit: https://github.com/log-10x/helm-charts

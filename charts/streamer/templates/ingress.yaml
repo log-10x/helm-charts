@@ -1,0 +1,109 @@
+{{- $ingressApiIsStable := eq (include "log10x-streamer.ingress.isStable" .) "true" -}}
+{{- $ingressSupportsIngressClassName := eq (include "log10x-streamer.ingress.supportsIngressClassName" .) "true" -}}
+{{- $ingressSupportsPathType := eq (include "log10x-streamer.ingress.supportsPathType" .) "true" -}}
+{{- $fullName := include "log10x-streamer.fullname" . -}}
+
+{{- range $index, $cluster := .Values.clusters }}
+{{- $ingressConfig := $cluster.ingress | default dict -}}
+{{- $ingressEnabled := $.Values.defaultIngress.enabled -}}
+{{- if hasKey $ingressConfig "enabled" -}}
+  {{- $ingressEnabled = $ingressConfig.enabled -}}
+{{- end -}}
+{{- if $ingressEnabled }}
+{{- $hasIndexRole := has "index" $cluster.roles -}}
+{{- $hasQueryRole := has "query" $cluster.roles -}}
+{{- if or $hasIndexRole $hasQueryRole }}
+---
+apiVersion: {{ include "log10x-streamer.ingress.apiVersion" $ }}
+kind: Ingress
+metadata:
+  name: {{ $fullName }}-{{ $cluster.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    cluster: {{ $cluster.name }}
+  {{- $defaultAnnotations := $.Values.defaultIngress.annotations | default dict }}
+  {{- $clusterAnnotations := $ingressConfig.annotations | default dict }}
+  {{- $mergedAnnotations := merge $clusterAnnotations $defaultAnnotations }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- range $key, $value := $mergedAnnotations }}
+    {{ $key }}: {{ tpl (toString $value) $ | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- $className := $ingressConfig.className | default $.Values.defaultIngress.className }}
+  {{- if and $ingressSupportsIngressClassName $className }}
+  ingressClassName: {{ $className }}
+  {{- end }}
+
+  {{- $tlsEnabled := false }}
+  {{- $tlsConfig := $ingressConfig.tls | default dict }}
+  {{- if $tlsConfig }}
+    {{- $tlsEnabled = $tlsConfig.enabled | default $.Values.defaultIngress.tls.enabled }}
+  {{- else }}
+    {{- $tlsEnabled = $.Values.defaultIngress.tls.enabled }}
+  {{- end }}
+  {{- if $tlsEnabled }}
+  {{- $host := $ingressConfig.host | default $.Values.defaultIngress.host }}
+  tls:
+    - hosts:
+        - {{ $host | quote }}
+      secretName: {{ include "log10x-streamer.cluster.ingress.tlsSecretName" (dict "cluster" $cluster "root" $) }}
+  {{- end }}
+
+  rules:
+    {{- $host := $ingressConfig.host | default $.Values.defaultIngress.host }}
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          {{- if $hasIndexRole }}
+          - path: /streamer/index
+            {{- if $ingressSupportsPathType }}
+            pathType: Prefix
+            {{- end }}
+            backend:
+              {{- if $ingressApiIsStable }}
+              service:
+                name: {{ $fullName }}-{{ $cluster.name }}
+                port:
+                  number: {{ $.Values.service.port }}
+              {{- else }}
+              serviceName: {{ $fullName }}-{{ $cluster.name }}
+              servicePort: {{ $.Values.service.port }}
+              {{- end }}
+          {{- end }}
+          {{- if $hasQueryRole }}
+          - path: /streamer/query
+            {{- if $ingressSupportsPathType }}
+            pathType: Prefix
+            {{- end }}
+            backend:
+              {{- if $ingressApiIsStable }}
+              service:
+                name: {{ $fullName }}-{{ $cluster.name }}
+                port:
+                  number: {{ $.Values.service.port }}
+              {{- else }}
+              serviceName: {{ $fullName }}-{{ $cluster.name }}
+              servicePort: {{ $.Values.service.port }}
+              {{- end }}
+          {{- end }}
+          {{- if or $hasIndexRole $hasQueryRole }}
+          - path: /metrics/load
+            {{- if $ingressSupportsPathType }}
+            pathType: Prefix
+            {{- end }}
+            backend:
+              {{- if $ingressApiIsStable }}
+              service:
+                name: {{ $fullName }}-{{ $cluster.name }}
+                port:
+                  number: {{ $.Values.service.port }}
+              {{- else }}
+              serviceName: {{ $fullName }}-{{ $cluster.name }}
+              servicePort: {{ $.Values.service.port }}
+              {{- end }}
+          {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,21 @@
+# Test values for CI pipeline
+# This file provides minimal valid configuration to pass chart validation during testing
+# Queue URLs are intentionally omitted so the app starts without attempting SQS polling
+
+log10xApiKey: "test-api-key-for-ci-testing-only"
+
+# Disable scheduled queries in CI (avoids requiring queryQueueUrl)
+scheduledQueries:
+  enabled: false
+
+clusters:
+  - name: test-cluster
+    roles: ["index", "query", "stream"]
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi

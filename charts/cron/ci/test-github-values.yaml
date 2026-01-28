@@ -1,0 +1,17 @@
+# Test values for CI pipeline with GitHub integration
+# This file tests the GitHub token validation and integration
+
+log10xApiKey: "test-api-key-for-ci-testing-only"
+githubToken: "fake-github-token-for-ci-testing-only"
+
+jobs:
+  - name: test-job-with-github
+    schedule: "*/10 * * * *"
+    args:
+      - "run"
+      - "--help"
+
+    github:
+      config:
+        repo: "log-10x/test-repo"
+        branch: "main"
