@@ -186,24 +186,24 @@ scheduledQueries:
       schedule: "0 * * * *"  # Every hour at minute 0 (UTC)
       queries:
         - name: "error-logs"
-          from: '$=now("-1h")'
-          to: '$=now()'
+          from: 'now("-1h")'
+          to: 'now()'
           search: 'severity_level=="ERROR"'
           # Optional fields (10x config provides defaults):
-          # processingTime: '$=parseDuration("5m")'
-          # resultSize: '$=parseBytes("100MB")'
+          # processingTime: 'parseDuration("5m")'
+          # resultSize: 'parseBytes("100MB")'
 
     - name: daily-summary
       schedule: "0 0 * * *"  # Daily at midnight UTC
       suspend: false  # Can be set to true to temporarily disable this specific job
       queries:
         - name: "daily-errors"
-          from: '$=now("-24h")'
-          to: '$=now()'
+          from: 'now("-24h")'
+          to: 'now()'
           search: 'severity_level=="ERROR"'
         - name: "daily-warnings"
-          from: '$=now("-24h")'
-          to: '$=now()'
+          from: 'now("-24h")'
+          to: 'now()'
           search: 'severity_level=="WARN"'
 ```
 
@@ -224,9 +224,9 @@ scheduledQueries:
 
 Queries use Log10x YAML-style configuration expressions that are parsed by the query server:
 
-- **Time**: `$=now()` - current time, `$=now("-1h")` - 1 hour ago, `$=now("-24h")` - 24 hours ago, `$=now("-7d")` - 7 days ago
-- **Duration**: `$=parseDuration("5m")` - 5 minutes, supports: `ms`, `s`, `m`, `h`
-- **Bytes**: `$=parseBytes("100MB")` - size in bytes, supports: `B`, `KB`, `MB`, `GB`
+- **Time**: `now()` - current time, `now("-1h")` - 1 hour ago, `now("-24h")` - 24 hours ago, `now("-7d")` - 7 days ago
+- **Duration**: `parseDuration("5m")` - 5 minutes, supports: `ms`, `s`, `m`, `h`
+- **Bytes**: `parseBytes("100MB")` - size in bytes, supports: `B`, `KB`, `MB`, `GB`
 
 **Default Values:**
 

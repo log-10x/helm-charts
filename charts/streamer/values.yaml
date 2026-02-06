@@ -478,12 +478,12 @@ scheduledQueries:
       schedule: "0 * * * *"  # Every hour at minute 0 (UTC timezone)
       queries:
         - name: "error-logs"
-          from: '$=now("-1h")'
-          to: '$=now()'
+          from: 'now("-1h")'
+          to: 'now()'
           search: 'severity_level=="ERROR"'
           # Optional overrides (defaults from global config if not specified):
-          # processingTime: '$=parseDuration("5m")'
-          # resultSize: '$=parseBytes("100MB")'
+          # processingTime: 'parseDuration("5m")'
+          # resultSize: 'parseBytes("100MB")'
 
     # Example: Daily summary with multiple queries
     # - name: daily-report
@@ -491,12 +491,12 @@ scheduledQueries:
     #   suspend: false  # Set true to temporarily disable
     #   queries:
     #     - name: "daily-errors"
-    #       from: '$=now("-24h")'
-    #       to: '$=now()'
+    #       from: 'now("-24h")'
+    #       to: 'now()'
     #       search: 'severity_level=="ERROR"'
     #     - name: "daily-warnings"
-    #       from: '$=now("-24h")'
-    #       to: '$=now()'
+    #       from: 'now("-24h")'
+    #       to: 'now()'
     #       search: 'severity_level=="WARN"'
 
   # Container image for sending SQS messages
