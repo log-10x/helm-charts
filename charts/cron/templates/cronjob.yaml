@@ -14,6 +14,9 @@ spec:
   schedule: {{ .schedule | quote }}
   jobTemplate:
     spec:
+      {{- if .activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+      {{- end }}
       template:
         metadata:
           {{- with $.Values.podAnnotations }}
