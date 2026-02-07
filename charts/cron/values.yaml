@@ -64,8 +64,20 @@ jobs:
     runtimeName: my-first-pipeline   # Optional
 
     # Controls the run schedule of the task
-    # Run every 10 mintues
+    # Run every 10 minutes
     schedule: "*/10 * * * *"
+
+    # Maximum duration in seconds for the job to run before Kubernetes terminates it.
+    # If not set, job can run indefinitely.
+    # When combined with concurrencyPolicy: Forbid, ensures stuck jobs don't block future runs.
+    # Example: activeDeadlineSeconds: 540  # Kill job after 9 minutes
+    # activeDeadlineSeconds: 540
+
+    # Controls what happens when a new job is scheduled while the previous is still running.
+    # - Allow (default): Multiple jobs can run concurrently
+    # - Forbid: Skip new job if previous is still running
+    # - Replace: Cancel running job and start new one
+    # concurrencyPolicy: Forbid
 
     # Sets list of cli arguments to pass to the 10x pipeline
     # For more details, see https://doc.log10x.com/config/cli
