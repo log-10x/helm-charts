@@ -1,0 +1,43 @@
+{{- range $index, $cluster := .Values.clusters }}
+{{- $ingressConfig := $cluster.ingress | default dict -}}
+{{- $ingressEnabled := $.Values.defaultIngress.enabled -}}
+{{- if hasKey $ingressConfig "enabled" -}}
+  {{- $ingressEnabled = $ingressConfig.enabled -}}
+{{- end -}}
+{{- if $ingressEnabled }}
+{{- $tlsConfig := $ingressConfig.tls | default dict }}
+{{- $tlsEnabled := $.Values.defaultIngress.tls.enabled }}
+{{- if hasKey $tlsConfig "enabled" -}}
+  {{- $tlsEnabled = $tlsConfig.enabled -}}
+{{- end }}
+{{- $tlsSource := $.Values.defaultIngress.tls.source }}
+{{- if hasKey $tlsConfig "source" -}}
+  {{- $tlsSource = $tlsConfig.source -}}
+{{- end }}
+{{- if and $tlsEnabled (eq $tlsSource "cert-manager") }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}-tls
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    cluster: {{ $cluster.name }}
+spec:
+  secretName: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}-tls-cert
+  {{- $issuerRef := dict }}
+  {{- $certManagerConfig := $tlsConfig.certManager | default dict }}
+  {{- if $certManagerConfig }}
+    {{- $issuerRef = $certManagerConfig.issuerRef }}
+  {{- else }}
+    {{- $issuerRef = $.Values.defaultIngress.tls.certManager.issuerRef }}
+  {{- end }}
+  issuerRef:
+    name: {{ $issuerRef.name }}
+    kind: {{ $issuerRef.kind | default "ClusterIssuer" }}
+  dnsNames:
+    {{- $host := $ingressConfig.host | default $.Values.defaultIngress.host }}
+    - {{ $host | quote }}
+{{- end }}
+{{- end }}
+{{- end }}

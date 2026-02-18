@@ -1,0 +1,20 @@
+{{- range $index, $cluster := .Values.clusters }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    cluster: {{ $cluster.name }}
+spec:
+  type: {{ $.Values.service.type }}
+  ports:
+    - port: {{ $.Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ include "log10x-streamer.name" $ }}
+    cluster: {{ $cluster.name }}
+{{- end }}

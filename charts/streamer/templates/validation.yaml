@@ -1,0 +1,90 @@
+{{- $hasStreamWorker := false }}
+{{- range .Values.clusters }}
+  {{- if has "stream" .roles }}
+    {{- $hasStreamWorker = true }}
+  {{- end }}
+{{- end }}
+{{- if $hasStreamWorker }}
+{{- $validOutputs := list "stdout" "s3" "cloudwatch" "elasticsearch" "splunk" "datadog" }}
+{{- if .Values.fluentBit.output.type }}
+  {{- if not (has .Values.fluentBit.output.type $validOutputs) }}
+    {{- fail (printf "fluentBit.output.type '%s' is not valid. Must be one of: %s" .Values.fluentBit.output.type (join ", " $validOutputs)) }}
+  {{- end }}
+{{- else }}
+  {{- fail "fluentBit.output.type is required when stream workers are enabled" }}
+{{- end }}
+{{- end }}
+
+{{- /* Validate TLS configuration */ -}}
+{{- $validTlsSources := list "cert-manager" "secret" "alb" }}
+{{- if .Values.defaultIngress.tls }}
+  {{- if .Values.defaultIngress.tls.enabled }}
+    {{- $tlsSource := .Values.defaultIngress.tls.source }}
+    {{- if not (has $tlsSource $validTlsSources) }}
+      {{- fail (printf "defaultIngress.tls.source '%s' is not valid. Must be one of: %s" $tlsSource (join ", " $validTlsSources)) }}
+    {{- end }}
+    {{- if eq $tlsSource "secret" }}
+      {{- if not .Values.defaultIngress.tls.secretName }}
+        {{- fail "defaultIngress.tls.secretName is required when tls.source is 'secret'" }}
+      {{- end }}
+    {{- end }}
+    {{- if eq $tlsSource "cert-manager" }}
+      {{- if not .Values.defaultIngress.tls.certManager.issuerRef.name }}
+        {{- fail "defaultIngress.tls.certManager.issuerRef.name is required when tls.source is 'cert-manager'" }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- /* Validate per-cluster TLS configuration */ -}}
+{{- range .Values.clusters }}
+  {{- if and .ingress .ingress.tls .ingress.tls.enabled }}
+    {{- $tlsSource := .ingress.tls.source }}
+    {{- if $tlsSource }}
+      {{- if not (has $tlsSource $validTlsSources) }}
+        {{- fail (printf "cluster '%s': ingress.tls.source '%s' is not valid. Must be one of: %s" .name $tlsSource (join ", " $validTlsSources)) }}
+      {{- end }}
+      {{- if eq $tlsSource "secret" }}
+        {{- if not .ingress.tls.secretName }}
+          {{- fail (printf "cluster '%s': ingress.tls.secretName is required when tls.source is 'secret'" .name) }}
+        {{- end }}
+      {{- end }}
+      {{- if eq $tlsSource "cert-manager" }}
+        {{- if not .ingress.tls.certManager.issuerRef.name }}
+          {{- fail (printf "cluster '%s': ingress.tls.certManager.issuerRef.name is required when tls.source is 'cert-manager'" .name) }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- /* Validate scheduled queries configuration */ -}}
+{{- if and .Values.scheduledQueries .Values.scheduledQueries.enabled }}
+{{- if not (kindIs "map" .Values.scheduledQueries) }}
+{{- fail "scheduledQueries must be an object with 'enabled' and 'jobs' fields. Use 'scheduledQueries: { enabled: false }' or omit scheduledQueries entirely to disable scheduled queries." }}
+{{- end }}
+{{- if and .Values.scheduledQueries.jobs (gt (len .Values.scheduledQueries.jobs) 0) }}
+{{- if not .Values.queryQueueUrl }}
+{{- fail "scheduledQueries.enabled is true and scheduledQueries.jobs is configured, but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
+{{- end }}
+{{- range $job := .Values.scheduledQueries.jobs }}
+{{- if not $job.name }}
+{{- fail "Each scheduledQueries.jobs entry must have a 'name' field" }}
+{{- end }}
+{{- if not $job.schedule }}
+{{- fail (printf "scheduledQueries.jobs[%s] must have a 'schedule' field (cron expression)" $job.name) }}
+{{- end }}
+{{- if not $job.queries }}
+{{- fail (printf "scheduledQueries.jobs[%s] must have a 'queries' array with at least one query" $job.name) }}
+{{- end }}
+{{- range $idx, $query := $job.queries }}
+{{- if not $query.from }}
+{{- fail (printf "scheduledQueries.jobs[%s].queries[%d] missing required field 'from'" $job.name $idx) }}
+{{- end }}
+{{- if not $query.to }}
+{{- fail (printf "scheduledQueries.jobs[%s].queries[%d] missing required field 'to'" $job.name $idx) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,10 @@
+apiVersion: v2
+description: Official Log10x helm chart for SQS-based Storage Streamer Quarkus deployment with optional Ingress support
+home: https://github.com/log-10x/helm-charts
+maintainers:
+  - email: engineering@log10x.com
+    name: log10x
+name: streamer-10x
+type: application
+version: 0.9.0
+appVersion: 0.9.0

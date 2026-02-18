@@ -1,0 +1,215 @@
+{{- range $index, $cluster := .Values.clusters }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    app: {{ include "log10x-streamer.name" $ }}
+    cluster: {{ $cluster.name }}
+spec:
+  {{- if not (and $cluster.autoscaling $cluster.autoscaling.enabled) }}
+  replicas: {{ $cluster.replicaCount | default 1 }}
+  {{- end }}
+  {{- with $cluster.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: {{ include "log10x-streamer.name" $ }}
+      cluster: {{ $cluster.name }}
+  template:
+    metadata:
+      {{- with $.Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app: {{ include "log10x-streamer.name" $ }}
+        cluster: {{ $cluster.name }}
+    spec:
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
+      securityContext:
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
+      {{- if include "log10x-streamer.githubEnabled" $ }}
+      initContainers:
+        {{- include "log10x-streamer.githubInitContainer" $ | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $.Chart.Name }}-{{ $cluster.name }}
+          {{- with $.Values.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          env:
+            - name: TENX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-streamer.fullname" $)) }}
+                  key: {{ $.Values.apiKeySecret.secretKey }}
+            - name: TENX_QUARKUS_MAX_ASYNC
+              value: "{{ $cluster.maxParallelRequests | default 10 }}"
+            - name: TENX_QUARKUS_MAX_QUEUED
+              value: "{{ $cluster.maxQueuedRequests | default 1000 }}"
+            - name: TENX_QUARKUS_READINESS_THRESHOLD
+              value: "{{ $cluster.readinessThresholdPercent | default 90 }}"
+          {{- if $.Values.inputBucket }}
+            - name: TENX_STREAMER_INPUT_BUCKET
+              value: {{ $.Values.inputBucket | quote }}
+          {{- end }}
+          {{- if $.Values.indexBucket }}
+            - name: TENX_STREAMER_INDEX_BUCKET
+              value: {{ $.Values.indexBucket | quote }}
+          {{- end }}
+          {{- if and (has "index" $cluster.roles) $.Values.indexBucket }}
+            - name: TENX_QUARKUS_INDEX_WRITE_CONTAINER
+              value: {{ $.Values.indexBucket | quote }}
+          {{- end }}
+          {{- if and $.Values.github $.Values.github.config }}
+            - name: TENX_CONFIG
+              value: "/data/config"
+          {{- end }}
+          {{- if and $.Values.github $.Values.github.symbols }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/data/config/data/shared/symbols"
+          {{- end }}
+          {{- include "log10x-streamer.roleEnvVars" (dict "cluster" $cluster "values" $.Values) | nindent 12 }}
+          {{- with $cluster.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+          {{- end}}
+          ports:
+            - name: http
+              containerPort: {{ $.Values.service.containerPort }}
+              protocol: TCP
+          {{- with $cluster.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cluster.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $cluster.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml $cluster.resources | nindent 12 }}
+          {{- if or (include "log10x-streamer.githubEnabled" $) $cluster.extraVolumeMounts }}
+          volumeMounts:
+          {{- if include "log10x-streamer.githubEnabled" $ }}
+            - name: github-data
+              mountPath: /data
+          {{- end }}
+          {{- with $cluster.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+        {{- if has "stream" $cluster.roles }}
+        - name: fluent-bit
+          image: "{{ $.Values.fluentBit.image.repository }}:{{ $.Values.fluentBit.image.tag }}"
+          imagePullPolicy: {{ $.Values.fluentBit.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: forward
+              containerPort: 24224
+              protocol: TCP
+            - name: metrics
+              containerPort: 2020
+              protocol: TCP
+          {{- if or (eq $.Values.fluentBit.output.type "splunk") (eq $.Values.fluentBit.output.type "datadog") (eq $.Values.fluentBit.output.type "elasticsearch") }}
+          env:
+          {{- if eq $.Values.fluentBit.output.type "splunk" }}
+            - name: SPLUNK_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: splunk-token
+          {{- else if eq $.Values.fluentBit.output.type "datadog" }}
+            - name: DATADOG_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: datadog-api-key
+          {{- else if eq $.Values.fluentBit.output.type "elasticsearch" }}
+            - name: ELASTICSEARCH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: elasticsearch-user
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  key: elasticsearch-password
+          {{- end }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml $.Values.fluentBit.resources | nindent 12 }}
+          volumeMounts:
+            - name: fluent-config
+              mountPath: /fluent-bit/etc/
+            - name: fluent-buffer
+              mountPath: /tmp/fluent-bit
+        {{- end }}
+      {{- if or (include "log10x-streamer.githubEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
+      volumes:
+      {{- if include "log10x-streamer.githubEnabled" $ }}
+        - name: github-data
+          emptyDir: {}
+      {{- end }}
+      {{- if has "stream" $cluster.roles }}
+        - name: fluent-config
+          configMap:
+            name: {{ include "log10x-streamer.fullname" $ }}-fluent-bit
+        - name: fluent-buffer
+          emptyDir:
+            sizeLimit: {{ $.Values.fluentBit.bufferStorageSize }}
+      {{- end }}
+      {{- with $cluster.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- with $cluster.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $cluster.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $cluster.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

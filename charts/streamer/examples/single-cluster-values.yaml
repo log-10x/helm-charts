@@ -1,0 +1,113 @@
+# Single cluster configuration for local minikube deployment
+# This configuration runs a single pod handling all three roles (index, query, pipeline)
+
+# REQUIRED: Set your Log10x API key
+log10xApiKey: "YOUR-LOG10X-API-KEY"
+
+# githubToken: "YOUR-GITHUB-TOKEN"
+
+# S3 bucket configuration
+inputBucket: "my-tenx-input-bucket"
+indexBucket: "my-tenx-index-bucket/tenx-index/"
+indexQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-index-queue"
+queryQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-query-queue"
+subQueryQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-subquery-queue"
+streamQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-stream-queue"
+
+# Uncomment and configure to enable GitHub integration:
+# github:
+#   config:
+#     # The repo to fetch the config from
+#     repo: "your-org/your-config-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "test-branch/streamer-config"
+
+  # symbols:
+  #   # The repo to fetch the symbols from
+  #   repo: "your-org/your-config-repo"
+  #   # Optional - a branch to pull.
+  #   # If omitted, the default repo branch will be used.
+  #   branch: "main"
+  #   # Optional - a sub folder inside the repo where symbols were placed.
+  #   # If omitted, the entire repo is considered as the symbols path.
+  #   path: "tenx/my-app/symbols"
+
+# Single cluster handling all roles
+clusters:
+  - name: all-in-one
+
+    roles: ["index", "query", "stream"]
+
+    # Single replica for local testing
+    replicaCount: 1
+
+    # Parallel request configuration
+    maxParallelRequests: 10
+    maxQueuedRequests: 1000
+    readinessThresholdPercent: 90
+
+    # AWS credentials configuration
+    # Replace with your actual AWS credentials
+    extraEnv:
+      - name: AWS_ACCESS_KEY_ID
+        value: "YOUR-AWS-ACCESS-KEY-ID"
+      - name: AWS_SECRET_ACCESS_KEY
+        value: "YOUR-AWS-SECRET-ACCESS-KEY"
+      - name: AWS_REGION
+        value: "us-east-1"
+      # Optional: If using AWS session token
+      # - name: AWS_SESSION_TOKEN
+      #   value: "YOUR-AWS-SESSION-TOKEN"
+
+    # Resource configuration for minikube
+    resources:
+      requests:
+        memory: 2Gi
+      limits:
+        memory: 2Gi
+
+    # Health probes
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 10
+      failureThreshold: 3
+
+    startupProbe:
+      httpGet:
+        path: /health/started
+        port: http
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 30
+
+    # No autoscaling for local testing
+    autoscaling:
+      enabled: false
+
+# Service configuration (health checks only)
+service:
+  type: ClusterIP
+  port: 80
+  containerPort: 8080
+
+# Service account configuration
+serviceAccount:
+  create: true
+  # For production with AWS IRSA, uncomment and configure:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/tenx-streamer-role

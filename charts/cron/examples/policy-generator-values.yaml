@@ -1,0 +1,46 @@
+# Sample config for log10x-cron which sets up a cloud reporter via github config.
+#
+# For more info on Log10x Cloud Reporter - https://doc.log10x.com/apps/cloud/reporter/
+#
+log10xApiKey: "YOUR-LOG10X-API-KEY"
+
+jobs:
+  # A single job will be deployed.
+  #
+  - name: policy-generator
+
+    # Pipeline name which will be reported to identify this job
+    #
+    runtimeName: my-policy-generator
+
+    # Will run every 5 minutes, at the 00/05/10/15/../50 minute mark of every hour
+    #
+    schedule: "*/5 * * * *"
+    args:
+      # Override default local args to upload policy.csv to github
+      # For more info on log10x gitops approach, see - https://doc.log10x.com/architecture/gitops
+      #
+      - "overrideKey"
+      - "policyOutputPath"
+      - "overrideValue"
+      - "lookups/policy.csv"
+
+      - "overrideKey"
+      - "policyOutputGithubRepo"
+      - "overrideValue"
+      - "MY-USER/MY-REPO"
+
+      # Run the policy generator application
+      #
+      # For more info, see - https://doc.log10x.com/apps/edge/policy
+      #
+      - "@apps/edge/policy"
+
+    # Additional env variables, as needed
+    #
+    extraEnv:
+      - name: "GH_TOKEN"
+        valueFrom:
+          secretKeyRef:
+            name: github-credentials
+            key: token

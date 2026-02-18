@@ -1,0 +1,644 @@
+# Default values for log10x-streamer.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+################################################################################
+# GLOBAL SETTINGS
+################################################################################
+
+# Allows overriding base names
+nameOverride: ""
+fullnameOverride: ""
+
+################################################################################
+# IMAGE CONFIGURATION
+################################################################################
+
+image:
+  repository: ghcr.io/log-10x/quarkus-10x
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# When replacing the image to your own custom one, allows for setting
+# secrets to allow pull access.
+imagePullSecrets: []
+
+# GitHub config fetcher init container image
+# Used to clone config/symbols repositories when github integration is enabled
+githubConfigFetcherImage:
+  repository: ghcr.io/log-10x/github-config-fetcher
+  tag: "0.9.0"
+  pullPolicy: IfNotPresent
+
+################################################################################
+# AUTHENTICATION & CREDENTIALS
+################################################################################
+
+# API key for Log10x authentication
+# SECURITY WARNING: Do not commit actual API keys to version control
+# Provide via: --set log10xApiKey="your-key" or separate values file
+log10xApiKey: ""
+
+# GitHub access token for git-ops config/symbols fetching
+# Used by the github-config-fetcher init container
+# All pods will share the same config/symbols
+githubToken: ""
+
+# Secret containing the TENX_API_KEY
+apiKeySecret:
+  # Set to true to let the chart manage the secret lifecycle
+  # The secret will be created/deleted with the Helm release
+  # Set to false if using existingSecret or external secret management
+  create: true
+
+  # Use an existing secret instead of creating one
+  # Useful for:
+  # - External secret management tools (External Secrets Operator, Vault, etc.)
+  # - Shared secrets across multiple releases
+  # - Secrets that should persist beyond the chart lifecycle
+  existingSecret: ""
+
+  # The key within the secret that contains the API key
+  secretKey: "tenx-api-key"
+
+  # Annotations to add to the secret (useful for external secret management)
+  annotations: {}
+    # Example for External Secrets Operator:
+    # external-secrets.io/managed: "true"
+
+################################################################################
+# RBAC & SERVICE ACCOUNT
+################################################################################
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+
+  # Annotations to add to the service account
+  # IMPORTANT: Required for AWS IRSA (IAM Roles for Service Accounts)
+  # This allows pods to access S3/SQS without embedding credentials
+  annotations: {}
+    # Example for AWS EKS:
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME
+
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+################################################################################
+# EXTERNAL DEPENDENCIES (S3 & SQS)
+################################################################################
+
+###### S3 Bucket Configuration ######
+
+# S3 bucket for input data (source logs)
+# Environment variable: TENX_STREAMER_INPUT_BUCKET
+# Used by all clusters to read source data
+inputBucket: ""
+
+# S3 bucket path for indexed results
+# Environment variable: TENX_STREAMER_INDEX_BUCKET
+# Used by all clusters; index role also writes to TENX_QUARKUS_INDEX_WRITE_CONTAINER
+# Example: "my-bucket/indexed/"
+indexBucket: ""
+
+###### SQS Queue Configuration ######
+
+# SQS queue URL for index operations
+# Environment variable: TENX_QUARKUS_INDEX_QUEUE_URL (for index role)
+# Applied to clusters with "index" in their roles array
+indexQueueUrl: ""
+
+# SQS queue URL for query operations
+# Environment variable: TENX_QUARKUS_QUERY_QUEUE_URL (for query role)
+# Applied to clusters with "query" in their roles array
+queryQueueUrl: ""
+
+# SQS queue URL for sub-query operations
+# Environment variable: TENX_QUARKUS_SUBQUERY_QUEUE_URL (for query role)
+# Environment variable: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT (for all roles)
+# Applied to clusters with "query" in their roles array
+subQueryQueueUrl: ""
+
+# SQS queue URL for stream operations
+# Environment variable: TENX_QUARKUS_STREAM_QUEUE_URL (for stream role)
+# Environment variable: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT (for all roles)
+# Applied to clusters with "stream" in their roles array
+streamQueueUrl: ""
+
+################################################################################
+# PIPELINE CONFIGURATION
+################################################################################
+
+# GitHub configuration for fetching pipeline config and compiled symbols
+# Each pod runs an init container that clones the repositories to an emptyDir volume
+# This provides the pipeline definitions and symbols needed for log processing
+#
+# Uncomment and configure to enable GitHub integration:
+# github:
+#   config:
+#     # The repo to fetch the config from
+#     repo: "user-name/config-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#
+#   symbols:
+#     # The repo to fetch the symbols from
+#     repo: "user-name/symbols-repo"
+#     # Optional - a branch to pull.
+#     # If omitted, the default repo branch will be used.
+#     branch: "main"
+#     # Optional - a sub folder inside the repo where symbols were placed.
+#     # If omitted, the entire repo is considered as the symbols path.
+#     path: "tenx/my-app/symbols"
+
+################################################################################
+# CLUSTER CONFIGURATION
+################################################################################
+
+# Clusters define independent deployments with specific roles
+# Each cluster can handle one or more roles (index, query, stream)
+# Roles are assigned via the "roles" array, and appropriate environment variables
+# are set based on the global queue URLs defined above
+#
+# Default: Single all-in-one cluster handling all three roles
+#
+clusters:
+  - name: all-in-one
+    # Roles this cluster should handle
+    # Available roles: "index", "query", "stream"
+    roles: ["index", "query", "stream"]
+
+    # Static replica count (not used if autoscaling.enabled is true)
+    replicaCount: 1
+
+    # Sets the maximum number of parallel pipelines each pod can execute
+    # Environment variable: TENX_QUARKUS_MAX_ASYNC
+    maxParallelRequests: 10
+
+    # Sets the maximum number of queued pipeline requests each pod can hold
+    # Environment variable: TENX_QUARKUS_MAX_QUEUED
+    maxQueuedRequests: 1000
+
+    # Load-based readiness threshold (0-100)
+    # When (activeTasks + queuedTasks) exceeds this percentage of total capacity,
+    # the pod will be marked NOT READY for health checks.
+    # Environment variable: TENX_QUARKUS_READINESS_THRESHOLD
+    readinessThresholdPercent: 90
+
+    # Additional environment variables specific to this cluster
+    # IMPORTANT: Add your AWS credentials here (if not using IRSA)
+    # Best Practice: Use IRSA via serviceAccount.annotations instead
+    extraEnv: []
+      # Example: Direct credentials (NOT recommended for production)
+      # - name: AWS_ACCESS_KEY_ID
+      #   value: "your-access-key"
+      # - name: AWS_SECRET_ACCESS_KEY
+      #   value: "your-secret-key"
+      # - name: AWS_REGION
+      #   value: "us-east-1"
+
+    # Additional volumes to mount into the main container
+    # These volumes will be mounted in addition to any volumes automatically
+    # configured by the chart (e.g., github-data, fluent-config)
+    # Useful for:
+    # - Persistent storage for heap dumps (PVC)
+    # - ConfigMaps or Secrets with additional configuration
+    # - EmptyDir for scratch space
+    extraVolumes: []
+      # Example: Persistent heap dump storage
+      # - name: heap-dumps
+      #   persistentVolumeClaim:
+      #     claimName: indexer-heap-dumps
+      # Example: ConfigMap with custom config
+      # - name: custom-config
+      #   configMap:
+      #     name: my-config
+
+    # Volume mounts for extraVolumes
+    # These define where extraVolumes are mounted in the container filesystem
+    extraVolumeMounts: []
+      # Example: Mount heap dump volume
+      # - name: heap-dumps
+      #   mountPath: /heap-dumps
+      # Example: Mount custom config
+      # - name: custom-config
+      #   mountPath: /etc/custom-config
+      #   readOnly: true
+
+    # Resource requests and limits
+    # IMPORTANT: Set these based on your pipeline requirements
+    # Index operations typically require more resources than query/stream
+    resources: {}
+      # Example:
+      # requests:
+      #   cpu: 1000m
+      #   memory: 2Gi
+      # limits:
+      #   cpu: 2000m
+      #   memory: 4Gi
+
+    # Autoscaling configuration via HorizontalPodAutoscaler
+    autoscaling:
+      enabled: false
+      minReplicas: 1
+      maxReplicas: 5
+      targetCPUUtilizationPercentage: 80
+      # targetMemoryUtilizationPercentage: 80
+
+    # Health probe configuration
+    # Custom non-reactive health endpoints to avoid event loop blocking under load
+    # /health/live - Simple liveness check (just returns UP)
+    # /health/ready - Load-based readiness check (marks NOT READY when near capacity)
+    # /health/started - Simple startup check (confirms app initialization)
+    livenessProbe:
+      httpGet:
+        path: /health/live
+        port: http
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 10
+      failureThreshold: 3
+
+    readinessProbe:
+      httpGet:
+        path: /health/ready
+        port: http
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 10
+      failureThreshold: 3
+
+    startupProbe:
+      httpGet:
+        path: /health/started
+        port: http
+      initialDelaySeconds: 0
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 30  # 300s (5 min) maximum startup time
+
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+    # Per-cluster ingress configuration (optional)
+    # Overrides defaultIngress settings for this specific cluster
+    # When ingress is enabled, role-based routing automatically exposes:
+    #   - /streamer/index (if cluster has 'index' role)
+    #   - /streamer/query (if cluster has 'query' role)
+    #   - /metrics/load (if cluster has 'index' or 'query' role)
+    #   - /pipeline endpoint is NOT exposed (debugging only)
+    ingress: {}
+      # enabled: true  # Override defaultIngress.enabled for this cluster
+      # host: "all-in-one.streamer.example.com"  # Override hostname
+      # className: ""  # Override ingress class
+      # annotations: {}  # Merge with or override defaultIngress.annotations
+      # tls:  # Override TLS settings
+      #   enabled: true
+      #   source: "cert-manager"
+      #   certManager:
+      #     issuerRef:
+      #       name: "letsencrypt-prod"
+      #       kind: "ClusterIssuer"
+
+# Example: Three separate clusters for production
+# Configure global queue URLs and service account above
+#
+# clusters:
+#   - name: indexer
+#     roles: ["index"]
+#     replicaCount: 2
+#     maxParallelRequests: 5  # Indexing is resource-intensive
+#     # Example: Persistent storage for heap dumps when OOM occurs
+#     extraEnv:
+#       - name: JAVA_OPTS_APPEND
+#         value: "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps/heapdump.hprof"
+#     extraVolumes:
+#       - name: heap-dumps
+#         persistentVolumeClaim:
+#           claimName: indexer-heap-dumps
+#     extraVolumeMounts:
+#       - name: heap-dumps
+#         mountPath: /heap-dumps
+#     resources:
+#       requests:
+#         cpu: 2000m
+#         memory: 4Gi
+#       limits:
+#         cpu: 4000m
+#         memory: 8Gi
+#
+#   - name: query-handler
+#     roles: ["query"]
+#     replicaCount: 5
+#     maxParallelRequests: 20
+#     resources:
+#       requests:
+#         cpu: 1000m
+#         memory: 2Gi
+#
+#   - name: stream-worker
+#     roles: ["stream"]
+#     replicaCount: 10
+#     maxParallelRequests: 15
+#     resources:
+#       requests:
+#         cpu: 1000m
+#         memory: 2Gi
+
+################################################################################
+# OUTPUT CONFIGURATION
+################################################################################
+
+# Fluent-bit sidecar configuration
+# IMPORTANT: This is the PRIMARY DELIVERY MECHANISM for query results
+# Automatically deployed for all clusters with "stream" in their roles array
+# Stream workers use the Fluency library to emit events to fluent-bit
+# via the forward protocol on localhost:24224
+# The streamer application receives connection details via:
+#   TENX_REMOTE_FORWARD_HOST=127.0.0.1
+#   TENX_REMOTE_FORWARD_PORT=24224
+fluentBit:
+  # Fluent-bit container image
+  image:
+    repository: fluent/fluent-bit
+    tag: "3.2.7"
+    pullPolicy: IfNotPresent
+
+  # Log level for fluent-bit
+  # Options: off, error, warn, info, debug, trace
+  logLevel: info
+
+  # Resource limits for fluent-bit container
+  # Industry standard: 100-200m CPU, 128-256Mi memory
+  # Fluent-bit is lightweight - uses ~1-10m CPU when idle, spikes during log bursts
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+  # Buffer storage size limit
+  # This is the maximum disk space fluent-bit can use for buffering
+  # Not pre-allocated - grows as needed, pod evicted if exceeded
+  # Recommendation: 500Mi-1Gi for most workloads, 2-5Gi for high-volume
+  bufferStorageSize: 1Gi
+
+  # Output configuration
+  # This determines WHERE query results are delivered to users
+  # Available types: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+  output:
+    # Output type - leave empty or set to "stdout" for default
+    # Must be one of: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+    type: stdout
+
+    # Type-specific configuration (only used when type is not stdout)
+    config:
+      # S3 output configuration (used when type: s3)
+      # Authentication: Uses IRSA (IAM Roles for Service Accounts)
+      # Ensure serviceAccount has eks.amazonaws.com/role-arn annotation
+      s3:
+        bucket: ""
+        region: us-east-1
+
+      # CloudWatch Logs output configuration (used when type: cloudwatch)
+      # Authentication: Uses IRSA (IAM Roles for Service Accounts)
+      # Required IAM permissions: logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents
+      # Ensure serviceAccount has eks.amazonaws.com/role-arn annotation
+      cloudwatch:
+        region: us-east-1
+        logGroupName: /aws/eks/fluent-bit-logs
+        logStreamPrefix: stream-worker-
+        autoCreateGroup: true
+
+      # Elasticsearch output configuration (used when type: elasticsearch)
+      # Authentication: Basic auth via username/password stored in secret
+      elasticsearch:
+        host: ""
+        port: 9200
+        index: fluent-bit
+        type: _doc
+        # HTTP basic authentication
+        httpUser: ""     # Provide via --set-string fluentBit.output.config.elasticsearch.httpUser=<user>
+        httpPasswd: ""   # Provide via --set-string fluentBit.output.config.elasticsearch.httpPasswd=<password>
+        tls: true
+        tlsVerify: true
+
+      # Splunk output configuration (used when type: splunk)
+      # Authentication: HEC token stored in secret
+      splunk:
+        host: ""
+        port: 8088
+        token: ""  # Provide via --set-string fluentBit.output.config.splunk.token=<token>
+        tls: true
+        tlsVerify: true
+
+      # Datadog output configuration (used when type: datadog)
+      # Authentication: API key stored in secret
+      datadog:
+        host: http-intake.logs.datadoghq.com
+        apiKey: ""  # Provide via --set-string fluentBit.output.config.datadog.apiKey=<key>
+        service: log10x-streamer
+        source: log10x
+
+  # Advanced: Provide raw fluent-bit configuration
+  # This overrides the output configuration above
+  # Use this for custom configurations or multiple outputs
+  config: ""
+  # Example:
+  # config: |
+  #   [OUTPUT]
+  #       Name   s3
+  #       Match  *
+  #       bucket my-custom-bucket
+  #       region us-west-2
+
+
+################################################################################
+# SCHEDULED QUERIES
+################################################################################
+
+# Kubernetes CronJobs that send predefined queries to the query SQS queue
+# Useful for recurring reports, monitoring checks, or automated data exports
+scheduledQueries:
+  # Enable or disable all scheduled query CronJobs
+  # Set to false to disable scheduled queries entirely
+  enabled: true
+
+  # Array of scheduled query jobs - each creates one CronJob resource
+  # Each CronJob runs on its defined schedule and sends one or more queries to SQS
+  jobs:
+    # Example: Hourly error checks
+    - name: hourly-errors
+      schedule: "0 * * * *"  # Every hour at minute 0 (UTC timezone)
+      queries:
+        - name: "error-logs"
+          from: 'now("-1h")'
+          to: 'now()'
+          search: 'severity_level=="ERROR"'
+          # Optional overrides (defaults from global config if not specified):
+          # processingTime: 'parseDuration("5m")'
+          # resultSize: 'parseBytes("100MB")'
+
+    # Example: Daily summary with multiple queries
+    # - name: daily-report
+    #   schedule: "0 0 * * *"  # Daily at midnight UTC
+    #   suspend: false  # Set true to temporarily disable
+    #   queries:
+    #     - name: "daily-errors"
+    #       from: 'now("-24h")'
+    #       to: 'now()'
+    #       search: 'severity_level=="ERROR"'
+    #     - name: "daily-warnings"
+    #       from: 'now("-24h")'
+    #       to: 'now()'
+    #       search: 'severity_level=="WARN"'
+
+  # Container image for sending SQS messages
+  # Uses AWS CLI to send messages to the query queue
+  image:
+    repository: amazon/aws-cli
+    tag: "2.15.17"
+    pullPolicy: IfNotPresent
+
+
+################################################################################
+# NETWORKING
+################################################################################
+
+###### Service Configuration ######
+
+# Per-cluster ClusterIP services are created for each cluster deployment
+# Services are used for:
+#   - Health check endpoints
+#   - Ingress routing (when ingress is enabled)
+#   - Internal pod-to-pod communication
+service:
+  type: ClusterIP
+  port: 80
+  containerPort: 8080
+
+###### Ingress Configuration ######
+
+# Default ingress configuration applied to all clusters
+# Individual clusters can override these settings via cluster.ingress
+# Ingress exposes REST endpoints for manual invocation (alternative to SQS)
+defaultIngress:
+  # Enable ingress for exposing REST endpoints
+  # When enabled, per-cluster ingress resources are created with role-based routing
+  # IMPORTANT: For production, configure authentication via annotations (see examples below)
+  # and enable TLS. Without these, endpoints are publicly accessible over plain HTTP.
+  enabled: true
+
+  # Ingress class name (nginx, alb, traefik, etc.)
+  # Leave empty to use the cluster's default ingress class
+  className: ""
+
+  # Default hostname for all clusters
+  # Individual clusters can override with cluster.ingress.host
+  host: "streamer.example.com"
+
+  # Annotations for ingress controller-specific configuration
+  # These are applied to all cluster ingresses unless overridden
+  # Common use cases: authentication, rate limiting, IP whitelisting
+  annotations: {}
+    # Example: NGINX Basic Auth
+    # nginx.ingress.kubernetes.io/auth-type: basic
+    # nginx.ingress.kubernetes.io/auth-secret: streamer-basic-auth
+    # nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
+    #
+    # Example: NGINX Rate Limiting
+    # nginx.ingress.kubernetes.io/limit-rps: "100"
+    # nginx.ingress.kubernetes.io/limit-connections: "10"
+    #
+    # Example: AWS ALB with ACM Certificate
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:region:account:certificate/xxx
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    #
+    # Example: AWS ALB with Cognito Authentication
+    # alb.ingress.kubernetes.io/auth-type: cognito
+    # alb.ingress.kubernetes.io/auth-idp-cognito: '{"userPoolArn":"...","userPoolClientId":"...","userPoolDomain":"..."}'
+    #
+    # Example: NGINX IP Whitelisting
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,192.168.1.0/24"
+
+  # TLS configuration
+  tls:
+    # Enable TLS/HTTPS
+    # IMPORTANT: Enable for production to encrypt API keys and query data in transit.
+    enabled: false
+
+    # Certificate source: "cert-manager", "secret", or "alb"
+    # - cert-manager: Automatic certificate provisioning using cert-manager
+    # - secret: Use an existing Kubernetes TLS secret
+    # - alb: AWS Certificate Manager (for AWS ALB controller)
+    source: "cert-manager"
+
+    # cert-manager configuration (when source is "cert-manager")
+    certManager:
+      # Reference to cert-manager Issuer or ClusterIssuer
+      issuerRef:
+        name: "letsencrypt-prod"
+        kind: "ClusterIssuer"  # or "Issuer"
+
+    # Existing TLS secret name (when source is "secret")
+    # Create with: kubectl create secret tls <name> --cert=cert.pem --key=key.pem
+    secretName: ""
+
+###### Network Policy ######
+
+# Optional NetworkPolicy for controlling pod network access
+# Disabled by default
+# When enabled, creates network policies to restrict ingress/egress traffic
+networkPolicy:
+  enabled: false
+
+  # Ingress rules (incoming traffic to streamer pods)
+  # Example: Allow traffic from ingress controller namespace
+  ingress: []
+    # - from:
+    #     - namespaceSelector:
+    #         matchLabels:
+    #           name: ingress-nginx
+    #   ports:
+    #     - protocol: TCP
+    #       port: 8080
+
+  # Egress rules (outgoing traffic from streamer pods)
+  # Example: Allow HTTPS to S3/SQS
+  egress: []
+    # - to:
+    #     - namespaceSelector: {}
+    #   ports:
+    #     - protocol: TCP
+    #       port: 443
+    #     - protocol: TCP
+    #       port: 80
+
+################################################################################
+# SECURITY & POD CONFIGURATION
+################################################################################
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod-level security context
+# Applied to all containers in the pod, controls volume ownership
+# The quarkus-10x image runs as UID 185 (jboss) by default
+podSecurityContext:
+  runAsNonRoot: true
+
+# Container-level security context
+# Controls capabilities, privilege escalation, and root filesystem
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL

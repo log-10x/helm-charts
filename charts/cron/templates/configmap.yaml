@@ -1,0 +1,17 @@
+{{- range .Values.jobs }}
+{{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
+{{- if $hasConfigFiles }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}-config
+  labels:
+    {{- include "log10x-cron.labels" $ | nindent 4 }}
+data:
+{{- range .configFiles }}
+  {{ .name }}: |-
+    {{- .content | toYaml | nindent 4 }}
+{{- end }}
+---
+{{- end }}
+{{- end }}

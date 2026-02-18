@@ -1,0 +1,199 @@
+# Default values for log10x-cron.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Allows overriding base names
+#
+nameOverride: ""
+fullnameOverride: ""
+
+###### Image settings ######
+
+image:
+  repository: ghcr.io/log-10x/pipeline-10x
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# GitHub config fetcher init container image
+# Used to clone config/symbols repositories when github integration is enabled
+# Most users will not need to modify these values
+#
+githubConfigFetcherImage:
+  repository: ghcr.io/log-10x/github-config-fetcher
+  tag: "0.9.0"
+  pullPolicy: IfNotPresent
+
+# When replacing the image to your own custom one, allows for setting
+# secrets to allow pull access.
+#
+imagePullSecrets: []
+
+# API key for log10x - stored as a Kubernetes secret and injected into all pods
+# via environment variable TENX_API_KEY
+# SECURITY WARNING: Do not commit actual API keys to version control
+# Provide via: --set log10xApiKey="your-key" or separate values file
+log10xApiKey: ""
+
+# GitHub access token for git-ops config/symbols fetching
+# Stored as a Kubernetes secret and used by jobs that define github configuration
+# Can be left empty if no jobs use github integration
+githubToken: ""
+
+# API key secret configuration
+apiKeySecret:
+  # If true, create a new secret with the log10xApiKey value above
+  # If false, use an existing secret specified by existingSecret
+  create: true
+
+  # Name of an existing Kubernetes secret to use (only used when create=false)
+  # The secret must contain a key with the API key value
+  existingSecret: ""
+
+  # The key name within the secret that contains the API key
+  # Default is "api-key"
+  secretKey: "api-key"
+
+###### Jobs ######
+
+jobs:
+    # This is the name of the job, which will be used inside k8
+  - name: sample-pipeline
+
+    # This is the name or the 10x pipeline process running inside the pod
+    runtimeName: my-first-pipeline   # Optional
+
+    # Controls the run schedule of the task
+    # Run every 10 minutes
+    schedule: "*/10 * * * *"
+
+    # Maximum duration in seconds for the job to run before Kubernetes terminates it.
+    # If not set, job can run indefinitely.
+    # When combined with concurrencyPolicy: Forbid, ensures stuck jobs don't block future runs.
+    # Example: activeDeadlineSeconds: 540  # Kill job after 9 minutes
+    # activeDeadlineSeconds: 540
+
+    # Controls what happens when a new job is scheduled while the previous is still running.
+    # - Allow (default): Multiple jobs can run concurrently
+    # - Forbid: Skip new job if previous is still running
+    # - Replace: Cancel running job and start new one
+    # concurrencyPolicy: Forbid
+
+    # Sets list of cli arguments to pass to the 10x pipeline
+    # For more details, see https://doc.log10x.com/config/cli
+    args:
+      - "run"
+
+    # Full config via github using git-ops approach (https://doc.log10x.com/architecture/gitops/)
+    # If defined, will spawn an init container which will pull config/symbols and make it available for the 10x
+    # pipeline in place of the config bundled with the container image.
+    # NOTE: GitHub access token is configured at the root level via 'githubToken' field
+    # See: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+    #
+    github:
+      config:
+        # The repo to fetch the config from
+        repo: "user-name/config-repo"
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "main"
+
+      symbols:
+        # The repo to fetch the symbols from
+        repo: "user-name/symbols-repo"
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "main"
+        # Optional - a sub folder inside the repo where symbols were placed.
+        # If omitted, the entire repo is considered as the symbols path.
+        path: "tenx/my-app/symbols"
+
+    # Additional env vars, if needed
+    extraEnv:
+    #   - name: MY_VAR
+    #     value: "SOME_VALUE"
+
+    # Custom init containers to run before the main container
+    # Useful for downloading files from S3, preparing data, etc.
+    initContainers: []
+    #   - name: s3-downloader
+    #     image: amazon/aws-cli:latest
+    #     command:
+    #       - sh
+    #       - -c
+    #       - |
+    #         aws s3 sync s3://my-bucket/path /data
+    #     env:
+    #       - name: AWS_ACCESS_KEY_ID
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: access-key-id
+    #       - name: AWS_SECRET_ACCESS_KEY
+    #         valueFrom:
+    #           secretKeyRef:
+    #             name: aws-credentials
+    #             key: secret-access-key
+    #       - name: AWS_REGION
+    #         value: "us-east-1"
+    #     volumeMounts:
+    #       - name: s3-data
+    #         mountPath: /data
+
+    # Volume mounts for the main container
+    volumeMounts: []
+    #   - name: s3-data
+    #     mountPath: /data
+
+    # Volumes to attach to the pod
+    volumes: []
+    #   - name: s3-data
+    #     emptyDir: {}
+
+    # Optionally add on-the-fly arguments to the 10x pipeline in yaml format.
+    # For more details, see https://doc.log10x.com/config/yaml
+    configFiles:
+      # - name: my-config.yaml
+      #   content:
+      #     my-key: my-value
+
+    resources: {}
+      # We usually recommend not to specify default resources and to leave this as a conscious
+      # choice for the user. This also increases chances charts run on environments with little
+      # resources, such as Minikube. If you do want to specify resources, uncomment the following
+      # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+      # The recommended values below are based on the Java application's -Xmx2048M configuration.
+      # limits:
+      #   cpu: 1000m
+      #   memory: 2560Mi  # 2.5GB: 2GB heap + ~512MB overhead for non-heap memory
+      # requests:
+      #   cpu: 500m
+      #   memory: 2048Mi  # 2GB: Matches -Xmx setting for guaranteed heap allocation
+
+    # Security context for the pod (applies to all containers)
+    # The pipeline-10x image runs as UID 1000 (tenxuser) by default
+    podSecurityContext:
+      runAsNonRoot: true
+
+    # Security context for the container
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+podAnnotations: {}
+
+###### Service account ######
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""

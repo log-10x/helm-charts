@@ -1,0 +1,91 @@
+{{- $hasStreamWorker := false }}
+{{- range .Values.clusters }}
+  {{- if has "stream" .roles }}
+    {{- $hasStreamWorker = true }}
+  {{- end }}
+{{- end }}
+{{- if $hasStreamWorker }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "log10x-streamer.fullname" . }}-fluent-bit
+  labels:
+    {{- include "log10x-streamer.labels" . | nindent 4 }}
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush        5
+        Daemon       off
+        Log_Level    {{ .Values.fluentBit.logLevel | default "info" }}
+        HTTP_Server  On
+        HTTP_Listen  0.0.0.0
+        HTTP_Port    2020
+
+    [INPUT]
+        Name     forward
+        Listen   0.0.0.0
+        Port     24224
+
+    {{- if .Values.fluentBit.config }}
+{{ .Values.fluentBit.config | indent 4 }}
+    {{- else }}
+    # Auto-generated output configuration based on output type
+    {{- if eq .Values.fluentBit.output.type "s3" }}
+    [OUTPUT]
+        Name         s3
+        Match        *
+        bucket       {{ .Values.fluentBit.output.config.s3.bucket }}
+        region       {{ .Values.fluentBit.output.config.s3.region | default "us-east-1" }}
+        store_dir    /tmp/fluent-bit/s3
+        total_file_size  250M
+        upload_timeout   10m
+        retry_limit  3
+    {{- else if eq .Values.fluentBit.output.type "cloudwatch" }}
+    [OUTPUT]
+        Name              cloudwatch_logs
+        Match             *
+        region            {{ .Values.fluentBit.output.config.cloudwatch.region | default "us-east-1" }}
+        log_group_name    {{ .Values.fluentBit.output.config.cloudwatch.logGroupName }}
+        log_stream_prefix {{ .Values.fluentBit.output.config.cloudwatch.logStreamPrefix }}
+        auto_create_group {{ ternary "On" "Off" .Values.fluentBit.output.config.cloudwatch.autoCreateGroup }}
+        retry_limit       3
+    {{- else if eq .Values.fluentBit.output.type "elasticsearch" }}
+    [OUTPUT]
+        Name            es
+        Match           *
+        Host            {{ .Values.fluentBit.output.config.elasticsearch.host }}
+        Port            {{ .Values.fluentBit.output.config.elasticsearch.port | default 9200 }}
+        Index           {{ .Values.fluentBit.output.config.elasticsearch.index | default "fluent-bit" }}
+        Type            {{ .Values.fluentBit.output.config.elasticsearch.type | default "_doc" }}
+        HTTP_User       ${ELASTICSEARCH_USER}
+        HTTP_Passwd     ${ELASTICSEARCH_PASSWORD}
+        tls             {{ ternary "On" "Off" .Values.fluentBit.output.config.elasticsearch.tls }}
+        tls.verify      {{ ternary "On" "Off" .Values.fluentBit.output.config.elasticsearch.tlsVerify }}
+        Retry_Limit     3
+    {{- else if eq .Values.fluentBit.output.type "splunk" }}
+    [OUTPUT]
+        Name         splunk
+        Match        *
+        Host         {{ .Values.fluentBit.output.config.splunk.host }}
+        Port         {{ .Values.fluentBit.output.config.splunk.port | default 8088 }}
+        Splunk_Token ${SPLUNK_TOKEN}
+        tls          {{ ternary "On" "Off" .Values.fluentBit.output.config.splunk.tls }}
+        tls_verify   {{ ternary "On" "Off" .Values.fluentBit.output.config.splunk.tlsVerify }}
+        retry_limit  3
+    {{- else if eq .Values.fluentBit.output.type "datadog" }}
+    [OUTPUT]
+        Name         datadog
+        Match        *
+        Host         {{ .Values.fluentBit.output.config.datadog.host | default "http-intake.logs.datadoghq.com" }}
+        apikey       ${DATADOG_API_KEY}
+        dd_service   {{ .Values.fluentBit.output.config.datadog.service | default "log10x-streamer" }}
+        dd_source    {{ .Values.fluentBit.output.config.datadog.source | default "log10x" }}
+        retry_limit  3
+    {{- else }}
+    # Default output: stdout (useful for debugging and log aggregation)
+    [OUTPUT]
+        Name   stdout
+        Match  *
+    {{- end }}
+    {{- end }}
+{{- end }}

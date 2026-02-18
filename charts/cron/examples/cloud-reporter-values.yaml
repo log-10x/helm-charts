@@ -1,0 +1,61 @@
+# Sample config for log10x-cron which sets up a cloud reporter via github config.
+#
+# For more info on Log10x Cloud Reporter - https://doc.log10x.com/apps/cloud/reporter/
+#
+log10xApiKey: "YOUR-LOG10X-API-KEY"
+
+# GitHub access token for fetching config/symbols repositories
+# To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+githubToken: "YOUR-GITHUB-TOKEN"
+
+jobs:
+  # A single job will be deployed.
+  #
+  - name: cloud-reporter
+
+    # Pipeline name which will be reported to identify this job
+    #
+    runtimeName: my-first-cloud-reporter
+
+    # Will run every 15 minutes, at the 00/15/30/45 minute mark of every hour
+    #
+    schedule: "*/15 * * * *"
+    args:
+      # Run the cloud reporter application
+      #
+      # For more info, see - https://doc.log10x.com/apps/cloud/reporter
+      #
+      - "@apps/cloud/reporter"
+
+    # Load application configuration from github
+    #
+    # NOTE: Don't forget to check that all necessary files in the specified repo/branch
+    # are up to date and contain the correct current information.
+    # This should include any required parameters, credentials, and settings used
+    # By the 10x pipeline as part of your selected app configuration.
+    #
+    # For more info, see - https://doc.log10x.com/apps/cloud/reporter/deploy
+    #
+    github:
+      config:
+        # The repo to fetch the config from
+        #
+        repo: "YOUR-ACCOUNT/REPO-NAME"
+
+        # Optional - a branch to pull.
+        # If omitted, the default repo branch will be used.
+        branch: "my-cloud-reporter-config"
+
+    # Additional env variables, as needed
+    #
+    # extraEnv:
+    #   - name: "MY_ANALYZER_USERNAME"
+    #     valueFrom:
+    #     secretKeyRef:
+    #       name: analyzer-credentials
+    #       key: username
+    #   - name: "MY_ANALYZER_PASSWORD"
+    #     valueFrom:
+    #       secretKeyRef:
+    #         name: analyzer-credentials
+    #         key: password

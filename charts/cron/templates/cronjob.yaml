@@ -1,0 +1,166 @@
+{{- range .Values.jobs }}
+{{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
+{{- $tenxGHInit := or (and .github .github.config) (and .github .github.symbols) -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "log10x-cron.labels" $ | nindent 4 }}
+spec:
+  concurrencyPolicy: {{ .concurrencyPolicy | default "Allow" }}
+  failedJobsHistoryLimit: {{ .failedJobsHistoryLimit | default 3 }}
+  successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit | default 3 }}
+  schedule: {{ .schedule | quote }}
+  jobTemplate:
+    spec:
+      {{- if .activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $.Values.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            app: {{ include "log10x-cron.name" $ }}
+            log10x-cron-name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+        spec:
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "log10x-cron.serviceAccountName" $ }}
+          {{- with .podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: {{ .restartPolicy | default "Never" }}
+          {{- if or $tenxGHInit .initContainers }}
+          initContainers:
+          {{- with .initContainers }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $tenxGHInit }}
+            - name: tenx-git-config
+              image: "{{ $.Values.githubConfigFetcherImage.repository }}:{{ $.Values.githubConfigFetcherImage.tag }}"
+              imagePullPolicy: {{ $.Values.githubConfigFetcherImage.pullPolicy }}
+              env:
+                - name: GITHUB_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "log10x-cron.fullname" $ }}-github-token
+                      key: token
+              args:
+                {{- if .github.config }}
+                - "--config-repo"
+                - "https://github.com/{{ .github.config.repo }}.git"
+                {{- if .github.config.branch }}
+                - "--config-branch"
+                - "{{ .github.config.branch }}"
+                {{- end }}
+                {{- end }}
+                {{- if .github.symbols }}
+                - "--symbols-repo"
+                - "https://github.com/{{ .github.symbols.repo }}.git"
+                {{- if .github.symbols.branch }}
+                - "--symbols-branch"
+                - "{{ .github.symbols.branch }}"
+                {{- end }}
+                {{- if .github.symbols.path }}
+                - "--symbols-path"
+                - "{{ .github.symbols.path }}"
+                {{- end }}
+                {{- end }}
+              volumeMounts:
+                - name: shared-git-volume
+                  mountPath: /data
+          {{- end }}
+          {{- end }}
+          containers:
+          - image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
+            imagePullPolicy: {{ $.Values.image.pullPolicy }}
+            name: {{ .name }}
+            env:
+              - name: TENX_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-cron.fullname" $)) }}
+                    key: {{ $.Values.apiKeySecret.secretKey }}
+            {{- if .runtimeName }}
+              - name: TENX_RUNTIME_NAME
+                value: "{{ .runtimeName }}"
+            {{- end}}
+            {{- if and .github .github.config }}
+              - name: TENX_CONFIG
+                value: "/etc/tenx/git/config"
+            {{- end }}
+            {{- if and .github .github.symbols }}
+              - name: TENX_SYMBOLS_PATH
+                value: "/etc/tenx/git/config/data/shared/symbols"
+            {{- end }}
+            {{- with .extraEnv }}
+              {{- toYaml . | nindent 14 }}
+            {{- end}}
+            {{- if or .args $hasConfigFiles }}
+            args:
+            {{- with .args }}
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- range .configFiles }}
+              - "@/etc/tenx/config/{{ .name }}"
+            {{- end }}
+            {{- end }}
+            {{- with .resources }}
+            resources:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .containerSecurityContext }}
+            securityContext:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- if or $tenxGHInit .volumeMounts $hasConfigFiles }}
+            volumeMounts:
+            {{- if $tenxGHInit }}
+              - name: shared-git-volume
+                mountPath: /etc/tenx/git
+            {{- end }}
+            {{- range .configFiles }}
+              - name: config-volume
+                mountPath: /etc/tenx/config/{{ .name }}
+                subPath: {{ .name }}
+            {{- end }}
+            {{- with .volumeMounts }}
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- end }}
+            {{- with .nodeSelector }}
+            nodeSelector:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .affinity }}
+            affinity:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+            {{- with .tolerations }}
+            tolerations:
+              {{- toYaml . | nindent 14 }}
+            {{- end }}
+          {{- if or $tenxGHInit .volumes $hasConfigFiles }}
+          volumes:
+          {{- if $tenxGHInit }}
+            - name: shared-git-volume
+              emptyDir: {}
+          {{- end }}
+          {{- if $hasConfigFiles }}
+            - name: config-volume
+              configMap:
+                name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}-config
+          {{- end }}
+          {{- with .volumes }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
+---
+{{- end }}
