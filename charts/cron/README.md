@@ -323,7 +323,7 @@ The chart also supports the creation of a k8 [ServiceAccount](https://kubernetes
 
 ### GitHub config fetcher
 
-When jobs specify `github.config` or `github.symbols`, the chart automatically adds an init container using the `github-config-fetcher` image (`ghcr.io/log-10x/github-config-fetcher`). This init container:
+When jobs specify `github.config` or `github.symbols`, the chart automatically adds an init container using the `github-config-fetcher` image (`log10x/github-config-fetcher`). This init container:
 
 - Clones specified GitHub repositories before the main job runs
 - Supports authentication via the `githubToken` secret

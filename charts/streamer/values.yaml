@@ -15,7 +15,7 @@ fullnameOverride: ""
 ################################################################################
 
 image:
-  repository: ghcr.io/log-10x/quarkus-10x
+  repository: log10x/quarkus-10x
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -27,7 +27,7 @@ imagePullSecrets: []
 # GitHub config fetcher init container image
 # Used to clone config/symbols repositories when github integration is enabled
 githubConfigFetcherImage:
-  repository: ghcr.io/log-10x/github-config-fetcher
+  repository: log10x/github-config-fetcher
   tag: "0.9.0"
   pullPolicy: IfNotPresent
 
