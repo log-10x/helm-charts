@@ -127,6 +127,14 @@ subQueryQueueUrl: ""
 # Applied to clusters with "stream" in their roles array
 streamQueueUrl: ""
 
+###### CloudWatch Logs Configuration ######
+
+# CloudWatch Logs log group for query event logging
+# Environment variable: TENX_QUERY_LOG_GROUP (for all roles)
+# When set, query progress events are logged to this CloudWatch Logs group.
+# The log group must exist before deploying (created by tenx-streamer-infra module).
+queryLogGroup: ""
+
 ################################################################################
 # PIPELINE CONFIGURATION
 ################################################################################

@@ -119,6 +119,7 @@ helm install my-streamer log10x/streamer-10x -f values.yaml
 | `streamQueueUrl` | SQS queue URL for stream operations | For stream role |
 | `inputBucket` | S3 bucket for input data | Recommended |
 | `indexBucket` | S3 bucket path for indexed results | Recommended |
+| `queryLogGroup` | CloudWatch Logs log group for query event logging | Recommended |
 
 ### Cluster Settings
 
