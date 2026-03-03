@@ -73,6 +73,10 @@ spec:
             - name: TENX_QUARKUS_INDEX_WRITE_CONTAINER
               value: {{ $.Values.indexBucket | quote }}
           {{- end }}
+          {{- if $.Values.queryLogGroup }}
+            - name: TENX_QUERY_LOG_GROUP
+              value: {{ $.Values.queryLogGroup | quote }}
+          {{- end }}
           {{- if and $.Values.github $.Values.github.config }}
             - name: TENX_CONFIG
               value: "/data/config"
