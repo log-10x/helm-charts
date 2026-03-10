@@ -15,13 +15,13 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-# GitHub config fetcher init container image
-# Used to clone config/symbols repositories when github integration is enabled
+# Git config fetcher init container image
+# Used to clone config/symbols repositories when git integration is enabled
 # Most users will not need to modify these values
 #
-githubConfigFetcherImage:
-  repository: log10x/github-config-fetcher
-  tag: "0.9.0"
+configFetcherImage:
+  repository: log10x/git-config-fetcher
+  tag: "0.9.7"
   pullPolicy: IfNotPresent
 
 # When replacing the image to your own custom one, allows for setting
@@ -35,10 +35,10 @@ imagePullSecrets: []
 # Provide via: --set log10xApiKey="your-key" or separate values file
 log10xApiKey: ""
 
-# GitHub access token for git-ops config/symbols fetching
-# Stored as a Kubernetes secret and used by jobs that define github configuration
-# Can be left empty if no jobs use github integration
-githubToken: ""
+# Git access token for private repositories (config and/or symbols)
+# Used by the git-config-fetcher init container
+# Can be left empty if no jobs use git integration
+gitToken: ""
 
 # API key secret configuration
 apiKeySecret:
@@ -84,29 +84,36 @@ jobs:
     args:
       - "run"
 
-    # Full config via github using git-ops approach (https://doc.log10x.com/architecture/gitops/)
-    # If defined, will spawn an init container which will pull config/symbols and make it available for the 10x
-    # pipeline in place of the config bundled with the container image.
-    # NOTE: GitHub access token is configured at the root level via 'githubToken' field
-    # See: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
+    # Configuration repository for git-ops approach (https://doc.log10x.com/architecture/gitops/)
+    # If enabled, an init container clones the repository before the main container starts.
+    # Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
+    # NOTE: Git access token is configured at the root level via 'gitToken' field
     #
-    github:
-      config:
-        # The repo to fetch the config from
-        repo: "user-name/config-repo"
-        # Optional - a branch to pull.
-        # If omitted, the default repo branch will be used.
-        branch: "main"
+    config:
+      # Method 1: Clone from a Git repository
+      git:
+        enabled: false
+        # Full HTTPS URL of the repository (e.g., https://github.com/your-org/config.git)
+        url: ""
+        # Optional: branch to clone (defaults to the repository's default branch)
+        # branch: "main"
 
-      symbols:
-        # The repo to fetch the symbols from
-        repo: "user-name/symbols-repo"
-        # Optional - a branch to pull.
-        # If omitted, the default repo branch will be used.
-        branch: "main"
-        # Optional - a sub folder inside the repo where symbols were placed.
-        # If omitted, the entire repo is considered as the symbols path.
-        path: "tenx/my-app/symbols"
+      # Method 2: Mount an existing PersistentVolumeClaim
+      volume:
+        enabled: false
+        # Name of an existing PVC containing the configuration directory
+        claimName: ""
+
+    # Symbol files (optional)
+    symbols:
+      git:
+        enabled: false
+        url: ""
+        # branch: "main"
+        # path: "tenx/my-app/symbols"
+      volume:
+        enabled: false
+        claimName: ""
 
     # Additional env vars, if needed
     extraEnv:

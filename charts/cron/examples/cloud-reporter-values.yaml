@@ -1,12 +1,12 @@
-# Sample config for log10x-cron which sets up a cloud reporter via github config.
+# Sample config for log10x-cron which sets up a cloud reporter via Git config.
 #
 # For more info on Log10x Cloud Reporter - https://doc.log10x.com/apps/cloud/reporter/
 #
 log10xApiKey: "YOUR-LOG10X-API-KEY"
 
-# GitHub access token for fetching config/symbols repositories
-# To learn more, see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens
-githubToken: "YOUR-GITHUB-TOKEN"
+# Git access token for private repositories (config and/or symbols)
+# Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted)
+gitToken: "YOUR-GIT-TOKEN"
 
 jobs:
   # A single job will be deployed.
@@ -27,23 +27,23 @@ jobs:
       #
       - "@apps/cloud/reporter"
 
-    # Load application configuration from github
+    # Load application configuration from a Git repository.
+    # Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
     #
     # NOTE: Don't forget to check that all necessary files in the specified repo/branch
     # are up to date and contain the correct current information.
     # This should include any required parameters, credentials, and settings used
-    # By the 10x pipeline as part of your selected app configuration.
+    # by the 10x pipeline as part of your selected app configuration.
     #
     # For more info, see - https://doc.log10x.com/apps/cloud/reporter/deploy
     #
-    github:
-      config:
-        # The repo to fetch the config from
-        #
-        repo: "YOUR-ACCOUNT/REPO-NAME"
+    config:
+      git:
+        enabled: true
+        # Full HTTPS URL of the repository
+        url: "https://github.com/YOUR-ACCOUNT/REPO-NAME.git"
 
-        # Optional - a branch to pull.
-        # If omitted, the default repo branch will be used.
+        # Optional - branch to clone (defaults to the repository's default branch)
         branch: "my-cloud-reporter-config"
 
     # Additional env variables, as needed
