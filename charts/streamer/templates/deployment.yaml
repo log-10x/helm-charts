@@ -37,9 +37,9 @@ spec:
       serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
-      {{- if include "log10x-streamer.githubEnabled" $ }}
+      {{- if include "log10x-streamer.gitEnabled" $ }}
       initContainers:
-        {{- include "log10x-streamer.githubInitContainer" $ | nindent 8 }}
+        {{- include "log10x-streamer.gitInitContainer" $ | nindent 8 }}
       {{- end }}
       containers:
         - name: {{ $.Chart.Name }}-{{ $cluster.name }}
@@ -77,13 +77,19 @@ spec:
             - name: TENX_QUERY_LOG_GROUP
               value: {{ $.Values.queryLogGroup | quote }}
           {{- end }}
-          {{- if and $.Values.github $.Values.github.config }}
+          {{- if and $.Values.config $.Values.config.git $.Values.config.git.enabled }}
             - name: TENX_CONFIG
               value: "/data/config"
+          {{- else if and $.Values.config $.Values.config.volume $.Values.config.volume.enabled }}
+            - name: TENX_CONFIG
+              value: "/etc/tenx/config"
           {{- end }}
-          {{- if and $.Values.github $.Values.github.symbols }}
+          {{- if and $.Values.symbols $.Values.symbols.git $.Values.symbols.git.enabled }}
             - name: TENX_SYMBOLS_PATH
               value: "/data/config/data/shared/symbols"
+          {{- else if and $.Values.symbols $.Values.symbols.volume $.Values.symbols.volume.enabled }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/etc/tenx/symbols"
           {{- end }}
           {{- include "log10x-streamer.roleEnvVars" (dict "cluster" $cluster "values" $.Values) | nindent 12 }}
           {{- with $cluster.extraEnv }}
@@ -107,11 +113,19 @@ spec:
           {{- end }}
           resources:
             {{- toYaml $cluster.resources | nindent 12 }}
-          {{- if or (include "log10x-streamer.githubEnabled" $) $cluster.extraVolumeMounts }}
+          {{- if or (include "log10x-streamer.configEnabled" $) $cluster.extraVolumeMounts }}
           volumeMounts:
-          {{- if include "log10x-streamer.githubEnabled" $ }}
-            - name: github-data
+          {{- if include "log10x-streamer.gitEnabled" $ }}
+            - name: tenx-git
               mountPath: /data
+          {{- end }}
+          {{- if and $.Values.config $.Values.config.volume $.Values.config.volume.enabled }}
+            - name: tenx-config-volume
+              mountPath: /etc/tenx/config
+          {{- end }}
+          {{- if and $.Values.symbols $.Values.symbols.volume $.Values.symbols.volume.enabled }}
+            - name: tenx-symbols-volume
+              mountPath: /etc/tenx/symbols
           {{- end }}
           {{- with $cluster.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -186,11 +200,21 @@ spec:
             - name: fluent-buffer
               mountPath: /tmp/fluent-bit
         {{- end }}
-      {{- if or (include "log10x-streamer.githubEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
+      {{- if or (include "log10x-streamer.configEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
       volumes:
-      {{- if include "log10x-streamer.githubEnabled" $ }}
-        - name: github-data
+      {{- if include "log10x-streamer.gitEnabled" $ }}
+        - name: tenx-git
           emptyDir: {}
+      {{- end }}
+      {{- if and $.Values.config $.Values.config.volume $.Values.config.volume.enabled }}
+        - name: tenx-config-volume
+          persistentVolumeClaim:
+            claimName: {{ $.Values.config.volume.claimName }}
+      {{- end }}
+      {{- if and $.Values.symbols $.Values.symbols.volume $.Values.symbols.volume.enabled }}
+        - name: tenx-symbols-volume
+          persistentVolumeClaim:
+            claimName: {{ $.Values.symbols.volume.claimName }}
       {{- end }}
       {{- if has "stream" $cluster.roles }}
         - name: fluent-config

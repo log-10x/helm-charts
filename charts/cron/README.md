@@ -84,35 +84,46 @@ apiKeySecret:
 
 **Security validation:** The chart will fail to deploy if `log10xApiKey` is empty when `apiKeySecret.create` is true.
 
-#### GitHub access token
+#### Git access token
 
-If your jobs need to fetch configuration or symbols from private GitHub repositories, provide a GitHub token:
+If your jobs need to fetch configuration or symbols from private Git repositories, provide a token via the root-level `gitToken` field. This works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
 
 ```yaml
-githubToken: "ghp_your_github_token"
+gitToken: "your-git-access-token"
 
 jobs:
   - name: pipeline-with-config
     schedule: "0 * * * *"
     args: ["run"]
 
-    github:
-      config:
-        repo: "owner/config-repo"
-        branch: "main"  # Optional, uses default branch if omitted
+    config:
+      git:
+        enabled: true
+        url: "https://github.com/owner/config-repo.git"
+        # branch: "main"  # Optional, uses default branch if omitted
+      volume:
+        enabled: false
+        claimName: ""
 
-      symbols:
-        repo: "owner/symbols-repo"
-        branch: "main"  # Optional
-        path: "compiled/symbols"  # Optional, uses entire repo if omitted
+    symbols:
+      git:
+        enabled: true
+        url: "https://github.com/owner/symbols-repo.git"
+        # branch: "main"  # Optional
+        # path: "compiled/symbols"  # Optional sub-path within the repo
+      volume:
+        enabled: false
+        claimName: ""
 ```
 
-The chart automatically:
-- Creates a Kubernetes secret for the token
-- Injects it securely via environment variable (not visible in pod specs)
-- Only validates the token is present if jobs actually use GitHub integration
+Each of `config` and `symbols` supports two methods:
+- **git**: An init container clones the repository before the main container starts.
+- **volume**: Mounts an existing PersistentVolumeClaim (for air-gapped environments or config managed outside of Git).
 
-**Security note:** Tokens are stored in Kubernetes secrets and injected via the `GITHUB_TOKEN` environment variable, never exposed in command arguments or pod specifications.
+The chart automatically:
+- Creates a Kubernetes secret for the token (when `gitToken` is non-empty)
+- Injects it via the `GIT_TOKEN` environment variable using a `secretKeyRef` (not visible in pod specs)
+- Only mounts the token into pods that have git integration enabled
 
 ### Volumes and storage
 
@@ -279,35 +290,45 @@ Config files are mounted at `/etc/tenx/config/` in the container.
 
 ## Migration guide
 
-### Migrating from github.config.token to githubToken
+### Migrating from github to config.git / symbols.git
 
 **Old format (deprecated):**
 ```yaml
+githubToken: "ghp_token_here"
+
 jobs:
   - name: my-job
     github:
       config:
         repo: "owner/config-repo"
-        token: "ghp_token_here"  # ❌ Deprecated
+        branch: "main"
+      symbols:
+        repo: "owner/symbols-repo"
 ```
 
 **New format:**
 ```yaml
-githubToken: "ghp_token_here"  # ✅ Root-level, shared by all jobs
+gitToken: "your-git-access-token"  # Root-level, shared by all jobs
 
 jobs:
   - name: my-job
-    github:
-      config:
-        repo: "owner/config-repo"
-        # No token field needed - uses root githubToken
+    config:
+      git:
+        enabled: true
+        url: "https://github.com/owner/config-repo.git"
+        # branch: "main"
+    symbols:
+      git:
+        enabled: true
+        url: "https://github.com/owner/symbols-repo.git"
 ```
 
-**Benefits of new format:**
-- Single token shared across all jobs in the chart
-- Stored in Kubernetes secret automatically
-- Injected via environment variable (more secure)
-- Simpler configuration
+**What changed:**
+- `githubToken` renamed to `gitToken` (provider-agnostic)
+- `github.config.repo` replaced by `config.git.url` (full HTTPS URL instead of `owner/repo` shorthand)
+- `github.symbols` replaced by `symbols.git` (same URL format)
+- Each section now also supports `volume` for PVC-based config loading
+- `enabled: true` is required to activate git cloning
 
 ## Under the hood
 
@@ -315,17 +336,18 @@ The chart deploys a [CronJob](https://kubernetes.io/docs/concepts/workloads/cont
 
 **Resources created:**
 - **CronJobs**: One per job defined in `values.yaml`
-- **Secrets**: API key secret, GitHub token secret (if needed)
+- **Secrets**: API key secret, Git token secret (if needed)
 - **ConfigMap**: Contains config files specified in job definitions
 - **ServiceAccount**: (Optional) For additional access to cluster resources
 
 The chart also supports the creation of a k8 [ServiceAccount](https://kubernetes.io/docs/concepts/security/service-accounts/) to provide additional access to various services that might be needed, such as [AWS access via IAM roles](https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html)
 
-### GitHub config fetcher
+### Git config fetcher
 
-When jobs specify `github.config` or `github.symbols`, the chart automatically adds an init container using the `github-config-fetcher` image (`log10x/github-config-fetcher`). This init container:
+When jobs specify `config.git` or `symbols.git`, the chart automatically adds an init container using the `git-config-fetcher` image (`log10x/git-config-fetcher`). This init container:
 
-- Clones specified GitHub repositories before the main job runs
-- Supports authentication via the `githubToken` secret
+- Clones specified Git repositories before the main job runs
+- Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted)
+- Supports authentication via the `gitToken` secret
 - Places config files in `/data/config/`
 - Places symbols in `/data/config/data/shared/symbols/`

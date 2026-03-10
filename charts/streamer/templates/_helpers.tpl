@@ -53,52 +53,61 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
-Check if GitHub integration is enabled
-Returns "true" if either github.config or github.symbols is defined
+Check if any Git cloning is needed
+Returns "true" if either config.git or symbols.git is enabled
 */}}
-{{- define "log10x-streamer.githubEnabled" -}}
-{{- if and .Values.github (or .Values.github.config .Values.github.symbols) -}}
+{{- define "log10x-streamer.gitEnabled" -}}
+{{- if or (and .Values.config .Values.config.git .Values.config.git.enabled) (and .Values.symbols .Values.symbols.git .Values.symbols.git.enabled) -}}
 true
 {{- end -}}
 {{- end -}}
 
 {{/*
-GitHub init container definition
+Check if any config/symbols loading is enabled (git or volume)
+*/}}
+{{- define "log10x-streamer.configEnabled" -}}
+{{- if or (and .Values.config .Values.config.git .Values.config.git.enabled) (and .Values.config .Values.config.volume .Values.config.volume.enabled) (and .Values.symbols .Values.symbols.git .Values.symbols.git.enabled) (and .Values.symbols .Values.symbols.volume .Values.symbols.volume.enabled) -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Git init container definition
 Clones config and/or symbols repositories to an emptyDir volume
 */}}
-{{- define "log10x-streamer.githubInitContainer" -}}
-- name: github-clone
-  image: "{{ .Values.githubConfigFetcherImage.repository }}:{{ .Values.githubConfigFetcherImage.tag }}"
-  imagePullPolicy: {{ .Values.githubConfigFetcherImage.pullPolicy }}
+{{- define "log10x-streamer.gitInitContainer" -}}
+- name: tenx-git-config
+  image: "{{ .Values.configFetcherImage.repository }}:{{ .Values.configFetcherImage.tag }}"
+  imagePullPolicy: {{ .Values.configFetcherImage.pullPolicy }}
   env:
-    - name: GITHUB_TOKEN
+    - name: GIT_TOKEN
       valueFrom:
         secretKeyRef:
-          name: {{ include "log10x-streamer.fullname" . }}-github-token
+          name: {{ include "log10x-streamer.fullname" . }}-git-token
           key: token
   args:
-    {{- if .Values.github.config }}
+    {{- if and .Values.config .Values.config.git .Values.config.git.enabled }}
     - "--config-repo"
-    - "https://github.com/{{ .Values.github.config.repo }}.git"
-    {{- if .Values.github.config.branch }}
+    - {{ .Values.config.git.url | quote }}
+    {{- if .Values.config.git.branch }}
     - "--config-branch"
-    - "{{ .Values.github.config.branch }}"
+    - {{ .Values.config.git.branch | quote }}
     {{- end }}
     {{- end }}
-    {{- if .Values.github.symbols }}
+    {{- if and .Values.symbols .Values.symbols.git .Values.symbols.git.enabled }}
     - "--symbols-repo"
-    - "https://github.com/{{ .Values.github.symbols.repo }}.git"
-    {{- if .Values.github.symbols.branch }}
+    - {{ .Values.symbols.git.url | quote }}
+    {{- if .Values.symbols.git.branch }}
     - "--symbols-branch"
-    - "{{ .Values.github.symbols.branch }}"
+    - {{ .Values.symbols.git.branch | quote }}
     {{- end }}
-    {{- if .Values.github.symbols.path }}
+    {{- if .Values.symbols.git.path }}
     - "--symbols-path"
-    - "{{ .Values.github.symbols.path }}"
+    - {{ .Values.symbols.git.path | quote }}
     {{- end }}
     {{- end }}
   volumeMounts:
-    - name: github-data
+    - name: tenx-git
       mountPath: /data
 {{- end -}}
 

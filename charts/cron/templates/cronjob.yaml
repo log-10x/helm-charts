@@ -1,6 +1,8 @@
 {{- range .Values.jobs }}
 {{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
-{{- $tenxGHInit := or (and .github .github.config) (and .github .github.symbols) -}}
+{{- $tenxGitInit := or (and .config .config.git .config.git.enabled) (and .symbols .symbols.git .symbols.git.enabled) -}}
+{{- $tenxVolumeInit := or (and .config .config.volume .config.volume.enabled) (and .symbols .symbols.volume .symbols.volume.enabled) -}}
+{{- $tenxConfigEnabled := or $tenxGitInit $tenxVolumeInit -}}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -37,40 +39,40 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           restartPolicy: {{ .restartPolicy | default "Never" }}
-          {{- if or $tenxGHInit .initContainers }}
+          {{- if or $tenxGitInit .initContainers }}
           initContainers:
           {{- with .initContainers }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- if $tenxGHInit }}
+          {{- if $tenxGitInit }}
             - name: tenx-git-config
-              image: "{{ $.Values.githubConfigFetcherImage.repository }}:{{ $.Values.githubConfigFetcherImage.tag }}"
-              imagePullPolicy: {{ $.Values.githubConfigFetcherImage.pullPolicy }}
+              image: "{{ $.Values.configFetcherImage.repository }}:{{ $.Values.configFetcherImage.tag }}"
+              imagePullPolicy: {{ $.Values.configFetcherImage.pullPolicy }}
               env:
-                - name: GITHUB_TOKEN
+                - name: GIT_TOKEN
                   valueFrom:
                     secretKeyRef:
-                      name: {{ include "log10x-cron.fullname" $ }}-github-token
+                      name: {{ include "log10x-cron.fullname" $ }}-git-token
                       key: token
               args:
-                {{- if .github.config }}
+                {{- if and .config .config.git .config.git.enabled }}
                 - "--config-repo"
-                - "https://github.com/{{ .github.config.repo }}.git"
-                {{- if .github.config.branch }}
+                - {{ .config.git.url | quote }}
+                {{- if .config.git.branch }}
                 - "--config-branch"
-                - "{{ .github.config.branch }}"
+                - {{ .config.git.branch | quote }}
                 {{- end }}
                 {{- end }}
-                {{- if .github.symbols }}
+                {{- if and .symbols .symbols.git .symbols.git.enabled }}
                 - "--symbols-repo"
-                - "https://github.com/{{ .github.symbols.repo }}.git"
-                {{- if .github.symbols.branch }}
+                - {{ .symbols.git.url | quote }}
+                {{- if .symbols.git.branch }}
                 - "--symbols-branch"
-                - "{{ .github.symbols.branch }}"
+                - {{ .symbols.git.branch | quote }}
                 {{- end }}
-                {{- if .github.symbols.path }}
+                {{- if .symbols.git.path }}
                 - "--symbols-path"
-                - "{{ .github.symbols.path }}"
+                - {{ .symbols.git.path | quote }}
                 {{- end }}
                 {{- end }}
               volumeMounts:
@@ -92,13 +94,19 @@ spec:
               - name: TENX_RUNTIME_NAME
                 value: "{{ .runtimeName }}"
             {{- end}}
-            {{- if and .github .github.config }}
+            {{- if and .config .config.git .config.git.enabled }}
               - name: TENX_CONFIG
                 value: "/etc/tenx/git/config"
+            {{- else if and .config .config.volume .config.volume.enabled }}
+              - name: TENX_CONFIG
+                value: "/etc/tenx/config"
             {{- end }}
-            {{- if and .github .github.symbols }}
+            {{- if and .symbols .symbols.git .symbols.git.enabled }}
               - name: TENX_SYMBOLS_PATH
                 value: "/etc/tenx/git/config/data/shared/symbols"
+            {{- else if and .symbols .symbols.volume .symbols.volume.enabled }}
+              - name: TENX_SYMBOLS_PATH
+                value: "/etc/tenx/symbols"
             {{- end }}
             {{- with .extraEnv }}
               {{- toYaml . | nindent 14 }}
@@ -120,11 +128,19 @@ spec:
             securityContext:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-            {{- if or $tenxGHInit .volumeMounts $hasConfigFiles }}
+            {{- if or $tenxConfigEnabled .volumeMounts $hasConfigFiles }}
             volumeMounts:
-            {{- if $tenxGHInit }}
+            {{- if $tenxGitInit }}
               - name: shared-git-volume
                 mountPath: /etc/tenx/git
+            {{- end }}
+            {{- if and .config .config.volume .config.volume.enabled }}
+              - name: tenx-config-volume
+                mountPath: /etc/tenx/config
+            {{- end }}
+            {{- if and .symbols .symbols.volume .symbols.volume.enabled }}
+              - name: tenx-symbols-volume
+                mountPath: /etc/tenx/symbols
             {{- end }}
             {{- range .configFiles }}
               - name: config-volume
@@ -147,11 +163,21 @@ spec:
             tolerations:
               {{- toYaml . | nindent 14 }}
             {{- end }}
-          {{- if or $tenxGHInit .volumes $hasConfigFiles }}
+          {{- if or $tenxConfigEnabled .volumes $hasConfigFiles }}
           volumes:
-          {{- if $tenxGHInit }}
+          {{- if $tenxGitInit }}
             - name: shared-git-volume
               emptyDir: {}
+          {{- end }}
+          {{- if and .config .config.volume .config.volume.enabled }}
+            - name: tenx-config-volume
+              persistentVolumeClaim:
+                claimName: {{ .config.volume.claimName }}
+          {{- end }}
+          {{- if and .symbols .symbols.volume .symbols.volume.enabled }}
+            - name: tenx-symbols-volume
+              persistentVolumeClaim:
+                claimName: {{ .symbols.volume.claimName }}
           {{- end }}
           {{- if $hasConfigFiles }}
             - name: config-volume

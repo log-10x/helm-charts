@@ -24,11 +24,11 @@ image:
 # secrets to allow pull access.
 imagePullSecrets: []
 
-# GitHub config fetcher init container image
-# Used to clone config/symbols repositories when github integration is enabled
-githubConfigFetcherImage:
-  repository: log10x/github-config-fetcher
-  tag: "0.9.0"
+# Git config fetcher init container image
+# Used to clone config/symbols repositories when git integration is enabled
+configFetcherImage:
+  repository: log10x/git-config-fetcher
+  tag: "0.9.7"
   pullPolicy: IfNotPresent
 
 ################################################################################
@@ -40,10 +40,9 @@ githubConfigFetcherImage:
 # Provide via: --set log10xApiKey="your-key" or separate values file
 log10xApiKey: ""
 
-# GitHub access token for git-ops config/symbols fetching
-# Used by the github-config-fetcher init container
-# All pods will share the same config/symbols
-githubToken: ""
+# Git access token for private repositories (config and/or symbols)
+# Used by the git-config-fetcher init container
+gitToken: ""
 
 # Secret containing the TENX_API_KEY
 apiKeySecret:
@@ -139,28 +138,40 @@ queryLogGroup: ""
 # PIPELINE CONFIGURATION
 ################################################################################
 
-# GitHub configuration for fetching pipeline config and compiled symbols
-# Each pod runs an init container that clones the repositories to an emptyDir volume
-# This provides the pipeline definitions and symbols needed for log processing
-#
-# Uncomment and configure to enable GitHub integration:
-# github:
-#   config:
-#     # The repo to fetch the config from
-#     repo: "user-name/config-repo"
-#     # Optional - a branch to pull.
-#     # If omitted, the default repo branch will be used.
-#     branch: "main"
-#
-#   symbols:
-#     # The repo to fetch the symbols from
-#     repo: "user-name/symbols-repo"
-#     # Optional - a branch to pull.
-#     # If omitted, the default repo branch will be used.
-#     branch: "main"
-#     # Optional - a sub folder inside the repo where symbols were placed.
-#     # If omitted, the entire repo is considered as the symbols path.
-#     path: "tenx/my-app/symbols"
+# ─────────────────────────────────────────────────────────────────────────────
+# Configuration Repository
+# ─────────────────────────────────────────────────────────────────────────────
+# The Log10x engine reads its configuration from a directory containing pipeline
+# definitions, module configs, and app settings. Use one of the methods below to
+# load your configuration into the cluster.
+config:
+  # Method 1: Clone from a Git repository
+  # An init container clones the repository before the main container starts.
+  # Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
+  git:
+    enabled: false
+    # Full HTTPS URL of the repository (e.g., https://github.com/your-org/config.git)
+    url: ""
+    # Optional: branch to clone (defaults to the repository's default branch)
+    # branch: "main"
+
+  # Method 2: Mount an existing PersistentVolumeClaim
+  # For air-gapped environments or when config is managed outside of Git.
+  volume:
+    enabled: false
+    # Name of an existing PVC containing the configuration directory
+    claimName: ""
+
+# Symbol files (optional)
+symbols:
+  git:
+    enabled: false
+    url: ""
+    # branch: "main"
+    # path: "tenx/my-app/symbols"
+  volume:
+    enabled: false
+    claimName: ""
 
 ################################################################################
 # CLUSTER CONFIGURATION
@@ -210,7 +221,7 @@ clusters:
 
     # Additional volumes to mount into the main container
     # These volumes will be mounted in addition to any volumes automatically
-    # configured by the chart (e.g., github-data, fluent-config)
+    # configured by the chart (e.g., tenx-git, fluent-config)
     # Useful for:
     # - Persistent storage for heap dumps (PVC)
     # - ConfigMaps or Secrets with additional configuration

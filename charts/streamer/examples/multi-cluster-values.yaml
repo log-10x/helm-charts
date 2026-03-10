@@ -4,7 +4,9 @@
 # REQUIRED: Set your Log10x API key
 log10xApiKey: "YOUR-LOG10X-API-KEY"
 
-# githubToken: "YOUR-GITHUB-TOKEN"
+# Git access token for private repositories (config and/or symbols)
+# Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted)
+# gitToken: "YOUR-GIT-TOKEN"
 
 # S3 bucket configuration
 inputBucket: "my-tenx-input-bucket"
@@ -14,24 +16,30 @@ queryQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-query-queue"
 subQueryQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-subquery-queue"
 streamQueueUrl: "https://sqs.us-east-1.amazonaws.com/123456789012/my-stream-queue"
 
-# Uncomment and configure to enable GitHub integration:
-# github:
-#   config:
-#     # The repo to fetch the config from
-#     repo: "your-org/your-config-repo"
-#     # Optional - a branch to pull.
-#     # If omitted, the default repo branch will be used.
-#     branch: "test-branch/streamer-config"
+# Uncomment and configure to load configuration from a Git repository.
+# Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
+# config:
+#   git:
+#     enabled: true
+#     url: "https://github.com/your-org/your-config-repo.git"
+#     # Optional - branch to clone (defaults to the repository's default branch)
+#     # branch: "main"
+#   volume:
+#     enabled: false
+#     claimName: ""
 
-  # symbols:
-  #   # The repo to fetch the symbols from
-  #   repo: "your-org/your-config-repo"
-  #   # Optional - a branch to pull.
-  #   # If omitted, the default repo branch will be used.
-  #   branch: "main"
-  #   # Optional - a sub folder inside the repo where symbols were placed.
-  #   # If omitted, the entire repo is considered as the symbols path.
-  #   path: "tenx/my-app/symbols"
+# Uncomment and configure to load symbol files from a Git repository:
+# symbols:
+#   git:
+#     enabled: true
+#     url: "https://github.com/your-org/your-config-repo.git"
+#     # Optional - branch to clone (defaults to the repository's default branch)
+#     # branch: "main"
+#     # Optional - sub folder inside the repo where symbols are located
+#     # path: "tenx/my-app/symbols"
+#   volume:
+#     enabled: false
+#     claimName: ""
 
 # Single cluster handling all roles
 clusters:
