@@ -76,7 +76,7 @@ spec:
                 {{- end }}
                 {{- end }}
               volumeMounts:
-                - name: shared-git-volume
+                - name: tenx-git
                   mountPath: /data
           {{- end }}
           {{- end }}
@@ -131,7 +131,7 @@ spec:
             {{- if or $tenxConfigEnabled .volumeMounts $hasConfigFiles }}
             volumeMounts:
             {{- if $tenxGitInit }}
-              - name: shared-git-volume
+              - name: tenx-git
                 mountPath: /etc/tenx/git
             {{- end }}
             {{- if and .config .config.volume .config.volume.enabled }}
@@ -166,7 +166,7 @@ spec:
           {{- if or $tenxConfigEnabled .volumes $hasConfigFiles }}
           volumes:
           {{- if $tenxGitInit }}
-            - name: shared-git-volume
+            - name: tenx-git
               emptyDir: {}
           {{- end }}
           {{- if and .config .config.volume .config.volume.enabled }}
