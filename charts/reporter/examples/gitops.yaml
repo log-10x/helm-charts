@@ -1,0 +1,48 @@
+# GitOps reporter deployment
+# Uses git-based configuration and symbol management.
+#
+# Usage:
+#   helm install log10x-reporter ./charts/reporter -f examples/gitops.yaml \
+#     --set log10xApiKey="YOUR-API-KEY" \
+#     --set gitToken="YOUR-GIT-TOKEN"
+
+log10xApiKey: ""  # Set via --set or separate secrets file
+gitToken: ""      # Set via --set or separate secrets file
+
+runtimeName: "my-gitops-reporter"
+
+# Exclude system namespaces
+excludeNamespaces:
+  - kube-system
+  - kube-public
+  - kube-node-lease
+
+config:
+  git:
+    enabled: true
+    url: "https://github.com/your-org/log10x-config.git"
+    # branch: "main"
+
+symbols:
+  git:
+    enabled: true
+    url: "https://github.com/your-org/log10x-config.git"
+    path: "tenx/my-app/symbols"
+
+fluentbit:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+tenx:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

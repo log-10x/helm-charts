@@ -1,0 +1,40 @@
+# Filtered reporter deployment
+# Only collects logs from specific namespaces and applies pattern filtering.
+#
+# Usage:
+#   helm install log10x-reporter ./charts/reporter -f examples/filtered.yaml \
+#     --set log10xApiKey="YOUR-API-KEY"
+
+log10xApiKey: ""  # Set via --set or separate secrets file
+runtimeName: "my-filtered-reporter"
+
+# Only collect logs from these namespaces
+includeNamespaces:
+  - default
+  - production
+  - staging
+
+# Exclude noisy log patterns
+excludePatterns:
+  - key: log
+    regex: "^\\s*$"       # Drop empty log lines
+  - key: log
+    regex: "health.check"  # Drop health check noise
+
+fluentbit:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+tenx:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

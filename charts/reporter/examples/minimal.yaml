@@ -1,0 +1,9 @@
+# Minimal reporter deployment
+# Collects all container logs, reports to Log10x, discards everything.
+#
+# Usage:
+#   helm install log10x-reporter ./charts/reporter -f examples/minimal.yaml \
+#     --set log10xApiKey="YOUR-API-KEY"
+
+log10xApiKey: ""  # Set via --set or separate secrets file
+runtimeName: "my-reporter"

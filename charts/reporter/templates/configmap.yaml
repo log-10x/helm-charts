@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "log10x-reporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "log10x-reporter.labels" . | nindent 4 }}
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Daemon Off
+        Flush {{ .Values.fluentbit.flush }}
+        Log_Level {{ .Values.fluentbit.logLevel }}
+        Parsers_File /fluent-bit/etc/parsers.conf
+        HTTP_Server On
+        HTTP_Listen 0.0.0.0
+        HTTP_Port {{ .Values.fluentbit.metricsPort }}
+        Health_Check On
+
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        multiline.parser docker, cri
+        Tag kube.*
+        Mem_Buf_Limit {{ .Values.fluentbit.memBufLimit }}
+        Skip_Long_Lines On
+
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+        K8S-Logging.Parser On
+        K8S-Logging.Exclude On
+
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude $kubernetes['pod_name'] ^{{ include "log10x-reporter.fullname" . }}-
+
+    {{- if .Values.includeNamespaces }}
+    [FILTER]
+        Name grep
+        Match kube.*
+        Regex $kubernetes['namespace_name'] ^({{ join "|" .Values.includeNamespaces }})$
+    {{- end }}
+
+    {{- if .Values.excludeNamespaces }}
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude $kubernetes['namespace_name'] ^({{ join "|" .Values.excludeNamespaces }})$
+    {{- end }}
+
+    {{- range .Values.includePatterns }}
+    [FILTER]
+        Name grep
+        Match kube.*
+        Regex {{ .key }} {{ .regex }}
+    {{- end }}
+
+    {{- range .Values.excludePatterns }}
+    [FILTER]
+        Name grep
+        Match kube.*
+        Exclude {{ .key }} {{ .regex }}
+    {{- end }}
+
+    [OUTPUT]
+        Name forward
+        Match kube.*
+        Unix_path {{ .Values.tenx.socketPath }}
+        Workers 1
+        Retry_Limit 5
+        net.keepalive off
+        net.connect_timeout 10
