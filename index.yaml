@@ -141,6 +141,22 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/cron-10x-0.9.0/cron-10x-0.9.0.tgz
     version: 0.9.0
+  reporter-10x:
+  - apiVersion: v2
+    appVersion: 1.0.7
+    created: "2026-04-21T15:57:32.470863525Z"
+    description: Official Log10x helm chart for non-invasive edge log reporting via
+      a parallel DaemonSet
+    digest: 40cb65aebd65e9900e01281de2a33e38911488b9520a4ada588c58b5757ac185
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: reporter-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/reporter-10x-1.0.7/reporter-10x-1.0.7.tgz
+    version: 1.0.7
   streamer-10x:
   - apiVersion: v2
     appVersion: 1.0.6
@@ -292,4 +308,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-03-25T13:08:01.382684773Z"
+generated: "2026-04-21T15:57:32.47089999Z"
