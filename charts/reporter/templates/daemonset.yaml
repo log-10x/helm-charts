@@ -1,0 +1,236 @@
+{{- $gitInit := or .Values.config.git.enabled .Values.symbols.git.enabled -}}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "log10x-reporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "log10x-reporter.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "log10x-reporter.selectorLabels" . | nindent 6 }}
+  {{- with .Values.updateStrategy }}
+  updateStrategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "log10x-reporter.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "log10x-reporter.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
+      hostNetwork: {{ .Values.hostNetwork }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- if $gitInit }}
+      initContainers:
+        - name: tenx-git-config
+          image: "{{ .Values.configFetcherImage.repository }}:{{ .Values.configFetcherImage.tag }}"
+          imagePullPolicy: {{ .Values.configFetcherImage.pullPolicy }}
+          env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "log10x-reporter.fullname" . }}-git-token
+                  key: token
+          args:
+            {{- if .Values.config.git.enabled }}
+            - "--config-repo"
+            - {{ .Values.config.git.url | quote }}
+            {{- if .Values.config.git.branch }}
+            - "--config-branch"
+            - {{ .Values.config.git.branch | quote }}
+            {{- end }}
+            {{- end }}
+            {{- if .Values.symbols.git.enabled }}
+            - "--symbols-repo"
+            - {{ .Values.symbols.git.url | quote }}
+            {{- if .Values.symbols.git.branch }}
+            - "--symbols-branch"
+            - {{ .Values.symbols.git.branch | quote }}
+            {{- end }}
+            {{- if .Values.symbols.git.path }}
+            - "--symbols-path"
+            - {{ .Values.symbols.git.path | quote }}
+            {{- end }}
+            {{- end }}
+          volumeMounts:
+            - name: tenx-git
+              mountPath: /data
+      {{- end }}
+      containers:
+        # ── Fluent Bit: tails container logs and forwards to 10x via Unix socket ──
+        - name: fluent-bit
+          image: {{ include "log10x-reporter.fluentbitImage" . | quote }}
+          imagePullPolicy: {{ .Values.fluentbit.image.pullPolicy }}
+          command:
+            - /fluent-bit/bin/fluent-bit
+            - -c
+            - /fluent-bit/etc/conf/fluent-bit.conf
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.fluentbit.metricsPort }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          {{- with .Values.fluentbit.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /fluent-bit/etc/conf
+            - name: varlog
+              mountPath: /var/log
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: etcmachineid
+              mountPath: /etc/machine-id
+              readOnly: true
+            - name: tenx-sockets
+              mountPath: {{ dir .Values.tenx.socketPath }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+
+        # ── Log10x: receives events from Fluent Bit, runs reporter pipeline ──
+        - name: tenx
+          image: {{ include "log10x-reporter.tenxImage" . | quote }}
+          imagePullPolicy: {{ .Values.tenx.image.pullPolicy }}
+          env:
+            - name: TENX_API_KEY
+            {{- if and .Values.log10xApiKey (ne .Values.log10xApiKey "") }}
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.apiKeySecret.create }}
+                  name: {{ include "log10x-reporter.fullname" . }}-api-key
+                  {{- else }}
+                  name: {{ .Values.apiKeySecret.existingSecret }}
+                  {{- end }}
+                  key: {{ .Values.apiKeySecret.secretKey }}
+            {{- else }}
+              value: "NO-API-KEY"
+            {{- end }}
+            {{- if .Values.runtimeName }}
+            - name: TENX_RUNTIME_NAME
+              value: {{ .Values.runtimeName | quote }}
+            {{- end }}
+            {{- if .Values.config.git.enabled }}
+            - name: TENX_CONFIG
+              value: "/etc/tenx/git/config"
+            {{- else if .Values.config.volume.enabled }}
+            - name: TENX_CONFIG
+              value: "/etc/tenx/config"
+            {{- end }}
+            {{- if .Values.symbols.git.enabled }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/etc/tenx/git/config/data/shared/symbols"
+            {{- else if .Values.symbols.volume.enabled }}
+            - name: TENX_SYMBOLS_PATH
+              value: "/etc/tenx/symbols"
+            {{- end }}
+            - name: TENX_FORWARD_INPUT_ADDRESS
+              value: {{ .Values.tenx.socketPath | quote }}
+            {{- with .Values.tenxExtraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          args:
+            {{- toYaml .Values.tenx.args | nindent 12 }}
+          {{- with .Values.tenx.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tenx.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tenx.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tenx-sockets
+              mountPath: {{ dir .Values.tenx.socketPath }}
+            {{- if $gitInit }}
+            - name: tenx-git
+              mountPath: /etc/tenx/git
+            {{- end }}
+            {{- if .Values.config.volume.enabled }}
+            - name: tenx-config-volume
+              mountPath: /etc/tenx/config
+            {{- end }}
+            {{- if .Values.symbols.volume.enabled }}
+            - name: tenx-symbols-volume
+              mountPath: /etc/tenx/symbols
+            {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "log10x-reporter.fullname" . }}
+        - name: tenx-sockets
+          emptyDir: {}
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: etcmachineid
+          hostPath:
+            path: /etc/machine-id
+            type: File
+        {{- if $gitInit }}
+        - name: tenx-git
+          emptyDir: {}
+        {{- end }}
+        {{- if .Values.config.volume.enabled }}
+        - name: tenx-config-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.config.volume.claimName }}
+        {{- end }}
+        {{- if .Values.symbols.volume.enabled }}
+        - name: tenx-symbols-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.symbols.volume.claimName }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

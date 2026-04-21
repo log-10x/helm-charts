@@ -1,0 +1,27 @@
+Log10x Edge Reporter has been deployed as a DaemonSet.
+
+  Release: {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+
+Architecture:
+  [fluent-bit] ──forward──▶ [10x reporter]
+    (tail)       (unix sock)   (analyze & report)
+
+The reporter runs in parallel to your existing log forwarder.
+Fluent Bit tails container logs, forwards them via Unix socket to the
+Log10x sidecar for analysis and metrics reporting. Logs are NOT forwarded
+to any external destination.
+
+{{- if not .Values.log10xApiKey }}
+
+WARNING: No API key configured. Set log10xApiKey to enable metrics reporting.
+{{- end }}
+
+To check the status:
+  kubectl get daemonset {{ include "log10x-reporter.fullname" . }} -n {{ .Release.Namespace }}
+
+To view Fluent Bit logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "log10x-reporter.name" . }} -c fluent-bit -n {{ .Release.Namespace }}
+
+To view Log10x logs:
+  kubectl logs -l app.kubernetes.io/name={{ include "log10x-reporter.name" . }} -c tenx -n {{ .Release.Namespace }}

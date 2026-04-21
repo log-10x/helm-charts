@@ -1,0 +1,264 @@
+# Default values for log10x-reporter.
+# This is a YAML-formatted file.
+#
+# This chart deploys a non-invasive, parallel DaemonSet that tails container logs
+# and feeds them to the Log10x engine for analysis and metrics reporting.
+# It runs alongside your existing log forwarder without replacing it.
+#
+# ── Resource footprint ──
+#
+# The combined default footprint is ~250 Mi memory and 150m CPU per node,
+# under 3% of a typical node's resources. Defaults are tuned for most
+# clusters out of the box. For high-volume environments (thousands of
+# containers per node), you may need to increase the limits — see resource
+# sections below for guidance.
+
+# Allows overriding base names
+nameOverride: ""
+fullnameOverride: ""
+
+###### Fluent Bit (log tailer) ######
+
+fluentbit:
+  image:
+    repository: fluent/fluent-bit
+    tag: "4.2"
+    pullPolicy: IfNotPresent
+
+  # Fluent Bit log level (error, warning, info, debug, trace)
+  logLevel: info
+
+  # Flush interval in seconds
+  flush: 1
+
+  # Memory buffer limit per input plugin
+  memBufLimit: 5MB
+
+  # Metrics port for health/readiness probes
+  metricsPort: 2020
+
+  # Resource defaults for the Fluent Bit log tailer.
+  # Fluent Bit is lightweight (~30 Mi baseline). Increase limits if collecting
+  # from a large number of containers or using complex parsing/filtering.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+###### Log10x engine (sidecar) ######
+
+tenx:
+  image:
+    repository: log10x/edge-10x
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  # CLI arguments passed to the 10x engine.
+  # The engine receives events from Fluent Bit via the Forward protocol.
+  # The Unix socket path is set via the TENX_FORWARD_INPUT_ADDRESS env var
+  # (from socketPath below), picked up by the forward input config.
+  args:
+    - "run"
+    - "@apps/reporter"
+
+  # Unix socket path for Fluent Bit → 10x communication
+  # Must match between the Fluent Bit forward output and 10x input
+  socketPath: "/tenx-sockets/tenx-reporter.sock"
+
+  # Resource defaults for the Log10x native sidecar.
+  # The native binary has a ~140 Mi baseline RSS. The defaults below are
+  # sufficient for most clusters. For high-volume environments (>1000
+  # containers/node or sustained >10K events/sec), consider increasing to
+  # 300 Mi request / 512 Mi limit and 200m CPU limit.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 192Mi
+    limits:
+      cpu: 300m
+      memory: 384Mi
+
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+
+  livenessProbe:
+    exec:
+      command: ["sh", "-c", "kill -0 1"]
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    failureThreshold: 3
+
+# Git config fetcher init container image
+# Used to clone config/symbols repositories when git integration is enabled
+configFetcherImage:
+  repository: log10x/git-config-fetcher
+  tag: "0.9.7"
+  pullPolicy: IfNotPresent
+
+# When replacing the image to your own custom one, allows for setting
+# secrets to allow pull access.
+imagePullSecrets: []
+
+###### Log10x settings ######
+
+# API key for Log10x - stored as a Kubernetes secret and injected into pods
+# via environment variable TENX_API_KEY
+# SECURITY WARNING: Do not commit actual API keys to version control
+# Provide via: --set log10xApiKey="your-key" or separate values file
+log10xApiKey: ""
+
+# Specify name for the 10x runtime
+# If empty, will use default from 10x configuration
+runtimeName: ""
+
+# API key secret configuration
+apiKeySecret:
+  # If true, create a new secret with the log10xApiKey value above
+  # If false, use an existing secret specified by existingSecret
+  create: true
+  # Name of an existing Kubernetes secret to use (only used when create=false)
+  existingSecret: ""
+  # The key name within the secret that contains the API key
+  secretKey: "api-key"
+
+# Git access token for private repositories (config and/or symbols)
+# Used by the git-config-fetcher init container
+gitToken: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Configuration Repository
+# ─────────────────────────────────────────────────────────────────────────────
+config:
+  # Method 1: Clone from a Git repository
+  # An init container clones the repository before the main container starts.
+  # Works with any Git provider (GitHub, GitLab, Bitbucket, self-hosted).
+  git:
+    enabled: false
+    # Full HTTPS URL of the repository (e.g., https://github.com/your-org/config.git)
+    url: ""
+    # Optional: branch to clone (defaults to the repository's default branch)
+    # branch: "main"
+
+  # Method 2: Mount an existing PersistentVolumeClaim
+  # For air-gapped environments or when config is managed outside of Git.
+  volume:
+    enabled: false
+    # Name of an existing PVC containing the configuration directory
+    claimName: ""
+
+# Symbol files (optional)
+symbols:
+  git:
+    enabled: false
+    url: ""
+    # branch: "main"
+    # path: "tenx/my-app/symbols"
+  volume:
+    enabled: false
+    claimName: ""
+
+###### Log collection settings ######
+
+# Namespaces to include/exclude from log collection
+# If includeNamespaces is set, ONLY those namespaces are collected.
+# If excludeNamespaces is set, those namespaces are excluded from collection.
+# If both are empty, all namespaces are collected.
+#
+includeNamespaces: []
+#  - default
+#  - my-app
+
+excludeNamespaces: []
+#  - kube-system
+#  - kube-public
+#  - kube-node-lease
+
+# Grep-based include/exclude patterns applied to the raw log line.
+# Uses Fluent Bit's grep filter. Only one of include/exclude per pattern.
+# See: https://docs.fluentbit.io/manual/pipeline/filters/grep
+#
+# Examples:
+#   includePatterns:
+#     - key: log
+#       regex: "ERROR|WARN"
+#   excludePatterns:
+#     - key: kubernetes.namespace_name
+#       regex: "kube-system"
+#
+includePatterns: []
+excludePatterns: []
+
+###### DaemonSet settings ######
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 1
+
+# Additional environment variables for the Fluent Bit container
+extraEnv: []
+#  - name: MY_VAR
+#    value: "SOME_VALUE"
+
+# Additional environment variables for the 10x sidecar container
+tenxExtraEnv: []
+
+# Additional volumes and volume mounts
+extraVolumes: []
+extraVolumeMounts: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+podAnnotations: {}
+
+podLabels: {}
+
+podSecurityContext: {}
+
+terminationGracePeriodSeconds:
+
+hostNetwork: false
+dnsPolicy: ClusterFirst
+
+###### Service account ######
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+###### RBAC ######
+
+rbac:
+  create: true
+
+###### Service ######
+
+service:
+  # Expose Fluent Bit metrics endpoint
+  enabled: true
+  type: ClusterIP
+  port: 2020
+
+###### Fluent Bit probes ######
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: http
+  initialDelaySeconds: 10
