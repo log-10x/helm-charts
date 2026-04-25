@@ -3,10 +3,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  name: {{ include "log10x-retriever.fullname" $ }}-{{ $cluster.name }}
   labels:
-    {{- include "log10x-streamer.labels" $ | nindent 4 }}
-    app: {{ include "log10x-streamer.name" $ }}
+    {{- include "log10x-retriever.labels" $ | nindent 4 }}
+    app: {{ include "log10x-retriever.name" $ }}
     cluster: {{ $cluster.name }}
 spec:
   {{- if not (and $cluster.autoscaling $cluster.autoscaling.enabled) }}
@@ -18,7 +18,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ include "log10x-streamer.name" $ }}
+      app: {{ include "log10x-retriever.name" $ }}
       cluster: {{ $cluster.name }}
   template:
     metadata:
@@ -27,19 +27,19 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        app: {{ include "log10x-streamer.name" $ }}
+        app: {{ include "log10x-retriever.name" $ }}
         cluster: {{ $cluster.name }}
     spec:
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
+      serviceAccountName: {{ include "log10x-retriever.serviceAccountName" $ }}
       securityContext:
         {{- toYaml $.Values.podSecurityContext | nindent 8 }}
-      {{- if include "log10x-streamer.gitEnabled" $ }}
+      {{- if include "log10x-retriever.gitEnabled" $ }}
       initContainers:
-        {{- include "log10x-streamer.gitInitContainer" $ | nindent 8 }}
+        {{- include "log10x-retriever.gitInitContainer" $ | nindent 8 }}
       {{- end }}
       containers:
         - name: {{ $.Chart.Name }}-{{ $cluster.name }}
@@ -53,7 +53,7 @@ spec:
             - name: TENX_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-streamer.fullname" $)) }}
+                  name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-retriever.fullname" $)) }}
                   key: {{ $.Values.apiKeySecret.secretKey }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ $cluster.maxParallelRequests | default 10 }}"
@@ -91,7 +91,7 @@ spec:
             - name: TENX_SYMBOLS_PATH
               value: "/etc/tenx/symbols"
           {{- end }}
-          {{- include "log10x-streamer.roleEnvVars" (dict "cluster" $cluster "values" $.Values) | nindent 12 }}
+          {{- include "log10x-retriever.roleEnvVars" (dict "cluster" $cluster "values" $.Values) | nindent 12 }}
           {{- with $cluster.extraEnv }}
             {{- toYaml . | nindent 12 }}
           {{- end}}
@@ -113,9 +113,9 @@ spec:
           {{- end }}
           resources:
             {{- toYaml $cluster.resources | nindent 12 }}
-          {{- if or (include "log10x-streamer.configEnabled" $) $cluster.extraVolumeMounts }}
+          {{- if or (include "log10x-retriever.configEnabled" $) $cluster.extraVolumeMounts }}
           volumeMounts:
-          {{- if include "log10x-streamer.gitEnabled" $ }}
+          {{- if include "log10x-retriever.gitEnabled" $ }}
             - name: tenx-git
               mountPath: /data
           {{- end }}
@@ -155,24 +155,24 @@ spec:
             - name: SPLUNK_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  name: {{ include "log10x-retriever.fullname" $ }}-fluent-secrets
                   key: splunk-token
           {{- else if eq $.Values.fluentBit.output.type "datadog" }}
             - name: DATADOG_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  name: {{ include "log10x-retriever.fullname" $ }}-fluent-secrets
                   key: datadog-api-key
           {{- else if eq $.Values.fluentBit.output.type "elasticsearch" }}
             - name: ELASTICSEARCH_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  name: {{ include "log10x-retriever.fullname" $ }}-fluent-secrets
                   key: elasticsearch-user
             - name: ELASTICSEARCH_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "log10x-streamer.fullname" $ }}-fluent-secrets
+                  name: {{ include "log10x-retriever.fullname" $ }}-fluent-secrets
                   key: elasticsearch-password
           {{- end }}
           {{- end }}
@@ -200,9 +200,9 @@ spec:
             - name: fluent-buffer
               mountPath: /tmp/fluent-bit
         {{- end }}
-      {{- if or (include "log10x-streamer.configEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
+      {{- if or (include "log10x-retriever.configEnabled" $) (has "stream" $cluster.roles) $cluster.extraVolumes }}
       volumes:
-      {{- if include "log10x-streamer.gitEnabled" $ }}
+      {{- if include "log10x-retriever.gitEnabled" $ }}
         - name: tenx-git
           emptyDir: {}
       {{- end }}
@@ -219,7 +219,7 @@ spec:
       {{- if has "stream" $cluster.roles }}
         - name: fluent-config
           configMap:
-            name: {{ include "log10x-streamer.fullname" $ }}-fluent-bit
+            name: {{ include "log10x-retriever.fullname" $ }}-fluent-bit
         - name: fluent-buffer
           emptyDir:
             sizeLimit: {{ $.Values.fluentBit.bufferStorageSize }}

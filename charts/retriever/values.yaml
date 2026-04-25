@@ -1,4 +1,4 @@
-# Default values for log10x-streamer.
+# Default values for log10x-retriever.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -131,7 +131,7 @@ streamQueueUrl: ""
 # CloudWatch Logs log group for query event logging
 # Environment variable: TENX_QUERY_LOG_GROUP (for all roles)
 # When set, query progress events are logged to this CloudWatch Logs group.
-# The log group must exist before deploying (created by tenx-streamer-infra module).
+# The log group must exist before deploying (created by tenx-retriever-infra module).
 queryLogGroup: ""
 
 ################################################################################
@@ -306,13 +306,13 @@ clusters:
     # Per-cluster ingress configuration (optional)
     # Overrides defaultIngress settings for this specific cluster
     # When ingress is enabled, role-based routing automatically exposes:
-    #   - /streamer/index (if cluster has 'index' role)
-    #   - /streamer/query (if cluster has 'query' role)
+    #   - /retriever/index (if cluster has 'index' role)
+    #   - /retriever/query (if cluster has 'query' role)
     #   - /metrics/load (if cluster has 'index' or 'query' role)
     #   - /pipeline endpoint is NOT exposed (debugging only)
     ingress: {}
       # enabled: true  # Override defaultIngress.enabled for this cluster
-      # host: "all-in-one.streamer.example.com"  # Override hostname
+      # host: "all-in-one.retriever.example.com"  # Override hostname
       # className: ""  # Override ingress class
       # annotations: {}  # Merge with or override defaultIngress.annotations
       # tls:  # Override TLS settings
@@ -377,7 +377,7 @@ clusters:
 # Automatically deployed for all clusters with "stream" in their roles array
 # Stream workers use the Fluency library to emit events to fluent-bit
 # via the forward protocol on localhost:24224
-# The streamer application receives connection details via:
+# The retriever application receives connection details via:
 #   TENX_REMOTE_FORWARD_HOST=127.0.0.1
 #   TENX_REMOTE_FORWARD_PORT=24224
 fluentBit:
@@ -462,7 +462,7 @@ fluentBit:
       datadog:
         host: http-intake.logs.datadoghq.com
         apiKey: ""  # Provide via --set-string fluentBit.output.config.datadog.apiKey=<key>
-        service: log10x-streamer
+        service: log10x-retriever
         source: log10x
 
   # Advanced: Provide raw fluent-bit configuration
@@ -560,7 +560,7 @@ defaultIngress:
 
   # Default hostname for all clusters
   # Individual clusters can override with cluster.ingress.host
-  host: "streamer.example.com"
+  host: "retriever.example.com"
 
   # Annotations for ingress controller-specific configuration
   # These are applied to all cluster ingresses unless overridden
@@ -568,7 +568,7 @@ defaultIngress:
   annotations: {}
     # Example: NGINX Basic Auth
     # nginx.ingress.kubernetes.io/auth-type: basic
-    # nginx.ingress.kubernetes.io/auth-secret: streamer-basic-auth
+    # nginx.ingress.kubernetes.io/auth-secret: retriever-basic-auth
     # nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
     #
     # Example: NGINX Rate Limiting
@@ -619,7 +619,7 @@ defaultIngress:
 networkPolicy:
   enabled: false
 
-  # Ingress rules (incoming traffic to streamer pods)
+  # Ingress rules (incoming traffic to retriever pods)
   # Example: Allow traffic from ingress controller namespace
   ingress: []
     # - from:
@@ -630,7 +630,7 @@ networkPolicy:
     #     - protocol: TCP
     #       port: 8080
 
-  # Egress rules (outgoing traffic from streamer pods)
+  # Egress rules (outgoing traffic from retriever pods)
   # Example: Allow HTTPS to S3/SQS
   egress: []
     # - to:

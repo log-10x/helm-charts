@@ -1,4 +1,4 @@
-# Log10x Streamer Helm Chart
+# Log10x Retriever Helm Chart
 
 Official Helm chart for deploying SQS-based Log10x pipeline streaming clusters on Kubernetes.
 
@@ -15,7 +15,7 @@ Stream workers automatically include a **fluent-bit sidecar** for log forwarding
 
 - Kubernetes 1.19+
 - Helm 3.0+
-- AWS SQS queues (recommended: use [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws))
+- AWS SQS queues (recommended: use [terraform-aws-tenx-retriever-infra](https://registry.terraform.io/modules/log-10x/tenx-retriever-infra/aws))
 - Log10x API key
 - AWS credentials configured (via IRSA or service account annotations)
 
@@ -24,7 +24,7 @@ Stream workers automatically include a **fluent-bit sidecar** for log forwarding
 ### Basic Installation (Single All-in-One Cluster)
 
 ```bash
-helm install my-streamer log10x/streamer-10x \
+helm install my-retriever log10x/retriever-10x \
   --set log10xApiKey="your-api-key" \
   --set indexQueueUrl="https://sqs.us-west-2.amazonaws.com/.../index-queue" \
   --set queryQueueUrl="https://sqs.us-west-2.amazonaws.com/.../query-queue" \
@@ -53,7 +53,7 @@ indexBucket: "my-bucket/indexed/"
 serviceAccount:
   create: true
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-streamer-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-retriever-role
 
 clusters:
   # Dedicated indexing cluster
@@ -103,7 +103,7 @@ fluentBit:
 Install:
 
 ```bash
-helm install my-streamer log10x/streamer-10x -f values.yaml
+helm install my-retriever log10x/retriever-10x -f values.yaml
 ```
 
 ## Key Configuration
@@ -162,7 +162,7 @@ fluentBit:
     config:
       cloudwatch:
         region: us-west-2
-        logGroupName: /aws/eks/my-streamer-logs
+        logGroupName: /aws/eks/my-retriever-logs
         logStreamPrefix: stream-
 ```
 
@@ -236,7 +236,7 @@ The Log10x query server automatically applies defaults from your pipeline config
 **Important Notes:**
 - **Timezone**: All cron schedules run in UTC
 - **Multiple queries per job**: Each job can define multiple queries that are sent sequentially
-- **IAM permissions**: CronJobs use the same service account as streamer pods. The IRSA role that grants `sqs:ReceiveMessage` for query workers automatically provides `sqs:SendMessage` permission needed by CronJobs
+- **IAM permissions**: CronJobs use the same service account as retriever pods. The IRSA role that grants `sqs:ReceiveMessage` for query workers automatically provides `sqs:SendMessage` permission needed by CronJobs
 - **Required fields per query**: Only `from` and `to` are required - the query server applies configured defaults for all other fields
 
 **Monitoring scheduled queries:**
@@ -252,7 +252,7 @@ kubectl get jobs -l component=scheduled-query
 kubectl logs job/<job-name>
 
 # Manually trigger a scheduled query (replace <job-name> with the name from scheduledQueries.jobs[].name)
-kubectl create job --from=cronjob/<release>-streamer-10x-<job-name> manual-run
+kubectl create job --from=cronjob/<release>-retriever-10x-<job-name> manual-run
 ```
 
 ## AWS IAM Configuration
@@ -263,7 +263,7 @@ Configure IRSA for AWS service access:
 serviceAccount:
   create: true
   annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-streamer-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/tenx-retriever-role
 ```
 
 **Required IAM permissions:**
@@ -272,7 +272,7 @@ serviceAccount:
 - S3 results bucket: `GetObject`, `PutObject`, `DeleteObject`, `ListBucket`
 - CloudWatch Logs (if using): `CreateLogGroup`, `CreateLogStream`, `PutLogEvents`
 
-For detailed IAM policy examples, see the [terraform-aws-tenx-streamer-infra](https://registry.terraform.io/modules/log-10x/tenx-streamer-infra/aws) module.
+For detailed IAM policy examples, see the [terraform-aws-tenx-retriever-infra](https://registry.terraform.io/modules/log-10x/tenx-retriever-infra/aws) module.
 
 ## Advanced Configuration
 
@@ -350,7 +350,7 @@ Check deployment status:
 
 ```bash
 # View all deployments
-kubectl get deployments -l app=streamer-10x
+kubectl get deployments -l app=retriever-10x
 
 # View logs
 kubectl logs -l cluster=stream-worker --tail=100 -f
@@ -359,7 +359,7 @@ kubectl logs -l cluster=stream-worker --tail=100 -f
 kubectl logs -l cluster=stream-worker -c fluent-bit --tail=50
 
 # Check pod health
-kubectl get pods -l app=streamer-10x
+kubectl get pods -l app=retriever-10x
 ```
 
 ## Documentation

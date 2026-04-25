@@ -1,14 +1,14 @@
 # Ingress Setup Guide for Minikube
 
-This guide walks you through enabling and testing the streamer chart's Ingress functionality on a local minikube cluster.
+This guide walks you through enabling and testing the retriever chart's Ingress functionality on a local minikube cluster.
 
 ## Overview
 
-The streamer Helm chart (v0.6.0+) supports Kubernetes Ingress for exposing REST endpoints. This allows you to manually invoke index and query operations via HTTP instead of (or in addition to) SQS queues.
+The retriever Helm chart (v0.6.0+) supports Kubernetes Ingress for exposing REST endpoints. This allows you to manually invoke index and query operations via HTTP instead of (or in addition to) SQS queues.
 
 **What you'll expose:**
-- `POST /streamer/index` - Trigger index operations
-- `POST /streamer/query` - Run queries
+- `POST /retriever/index` - Trigger index operations
+- `POST /retriever/query` - Run queries
 - `GET /metrics/load` - View cluster load metrics
 
 **What's NOT exposed:**
@@ -137,7 +137,7 @@ streamQueueUrl: "https://sqs.us-east-1.amazonaws.com/YOUR_ACCOUNT/stream-queue"
 defaultIngress:
   enabled: true           # Enable ingress
   className: nginx        # Use NGINX ingress controller
-  host: "streamer.local"  # Hostname for accessing endpoints
+  host: "retriever.local"  # Hostname for accessing endpoints
   tls:
     enabled: false        # Disable TLS for local testing
 
@@ -187,7 +187,7 @@ clusters:
     roles: ["index"]
     replicaCount: 1
     ingress:
-      host: "indexer.streamer.local"  # Custom host for indexer
+      host: "indexer.retriever.local"  # Custom host for indexer
     extraEnv:
       - name: AWS_ACCESS_KEY_ID
         value: "your-key"
@@ -201,7 +201,7 @@ clusters:
     roles: ["query"]
     replicaCount: 2
     ingress:
-      host: "query.streamer.local"  # Custom host for queries
+      host: "query.retriever.local"  # Custom host for queries
     extraEnv:
       - name: AWS_ACCESS_KEY_ID
         value: "your-key"
@@ -227,23 +227,23 @@ Navigate to the chart directory and install:
 
 ```bash
 # Navigate to chart directory
-cd path/to/helm-charts/charts/streamer
+cd path/to/helm-charts/charts/retriever
 
 # Install the chart
-helm install my-streamer . -f test-values.yaml
+helm install my-retriever . -f test-values.yaml
 ```
 
 **Expected output:**
 ```
-NAME: my-streamer
+NAME: my-retriever
 LAST DEPLOYED: ...
 NAMESPACE: default
 STATUS: deployed
 REVISION: 1
 NOTES:
-Thank you for installing streamer-10x!
+Thank you for installing retriever-10x!
 
-Your release is named my-streamer.
+Your release is named my-retriever.
 
 The following clusters have been deployed:
   - test-cluster (1 replica)
@@ -252,12 +252,12 @@ The following clusters have been deployed:
 
 Ingress Configuration:
   - Cluster: test-cluster
-    Host: streamer.local
+    Host: retriever.local
     TLS: Disabled (HTTP only - NOT recommended for production!)
     Exposed endpoints:
-      * POST http://streamer.local/streamer/index - Index files
-      * POST http://streamer.local/streamer/query - Run queries
-      * GET http://streamer.local/metrics/load - View load metrics
+      * POST http://retriever.local/retriever/index - Index files
+      * POST http://retriever.local/retriever/query - Run queries
+      * GET http://retriever.local/metrics/load - View load metrics
 
 ⚠️  SECURITY WARNING: No authentication configured on ingress!
   [... authentication examples ...]
@@ -267,25 +267,25 @@ Ingress Configuration:
 
 ```bash
 # Check pods are running
-kubectl get pods -l app=streamer-10x
+kubectl get pods -l app=retriever-10x
 
 # Check services
-kubectl get services -l app=streamer-10x
+kubectl get services -l app=retriever-10x
 
 # Check ingress
-kubectl get ingress -l app=streamer-10x
+kubectl get ingress -l app=retriever-10x
 ```
 
 **Expected output:**
 ```
 NAME                                    READY   STATUS    RESTARTS   AGE
-my-streamer-streamer-10x-test-cluster   1/1     Running   0          30s
+my-retriever-retriever-10x-test-cluster   1/1     Running   0          30s
 
 NAME                                    TYPE        CLUSTER-IP      PORT(S)   AGE
-my-streamer-streamer-10x-test-cluster   ClusterIP   10.96.xxx.xxx   80/TCP    30s
+my-retriever-retriever-10x-test-cluster   ClusterIP   10.96.xxx.xxx   80/TCP    30s
 
 NAME                                    CLASS   HOSTS            ADDRESS        PORTS   AGE
-my-streamer-streamer-10x-test-cluster   nginx   streamer.local   192.168.49.2   80      30s
+my-retriever-retriever-10x-test-cluster   nginx   retriever.local   192.168.49.2   80      30s
 ```
 
 ## Step 5: Access the Endpoints
@@ -298,7 +298,7 @@ This method bypasses ingress and connects directly to the service. It's the most
 
 ```bash
 # Forward local port 8080 to the service
-kubectl port-forward svc/my-streamer-streamer-10x-test-cluster 8080:80
+kubectl port-forward svc/my-retriever-retriever-10x-test-cluster 8080:80
 ```
 
 Keep this terminal open. In a new terminal, test the endpoints:
@@ -322,22 +322,22 @@ minikube tunnel
 
 **Note**: On Windows, this will prompt for Administrator access. Leave this terminal open.
 
-In a new terminal, you need to add `streamer.local` to your hosts file:
+In a new terminal, you need to add `retriever.local` to your hosts file:
 
 **Windows** (`C:\Windows\System32\drivers\etc\hosts`):
 ```
-192.168.49.2  streamer.local
+192.168.49.2  retriever.local
 ```
 
 **macOS/Linux** (`/etc/hosts`):
 ```
-192.168.49.2  streamer.local
+192.168.49.2  retriever.local
 ```
 
 Then test via ingress:
 
 ```bash
-curl http://streamer.local/metrics/load
+curl http://retriever.local/metrics/load
 ```
 
 **Troubleshooting Tunnel Issues**:
@@ -354,7 +354,7 @@ curl http://streamer.local/metrics/load
 curl http://localhost:8080/metrics/load
 
 # Via ingress
-curl http://streamer.local/metrics/load
+curl http://retriever.local/metrics/load
 ```
 
 **Expected response:**
@@ -376,7 +376,7 @@ curl http://streamer.local/metrics/load
 Trigger an index operation:
 
 ```bash
-curl -X POST http://localhost:8080/streamer/index \
+curl -X POST http://localhost:8080/retriever/index \
   -H "Content-Type: application/json" \
   -d '{
     "readContainer": "your-bucket-name",
@@ -395,7 +395,7 @@ kubectl logs -l cluster=test-cluster --tail=20 -f
 
 Look for:
 ```
-[INFO] PipelineLaunchTask - starting pipeline - {"tenx":"@/apps/cloud/streamer/index"...}
+[INFO] PipelineLaunchTask - starting pipeline - {"tenx":"@/apps/cloud/retriever/index"...}
 ```
 
 ### Test 3: Query Operation (POST)
@@ -403,7 +403,7 @@ Look for:
 Run a query:
 
 ```bash
-curl -X POST http://localhost:8080/streamer/query \
+curl -X POST http://localhost:8080/retriever/query \
   -H "Content-Type: application/json" \
   -d '{
     "search": "(severity_level == \"ERROR\")",
@@ -428,7 +428,7 @@ The `/pipeline` endpoint should NOT be accessible via ingress (only via direct p
 
 ```bash
 # This should fail (404 or similar) when going through ingress
-curl http://streamer.local/pipeline
+curl http://retriever.local/pipeline
 
 # But works via port-forward (direct to pod)
 curl http://localhost:8080/pipeline
@@ -453,10 +453,10 @@ kubectl logs -l cluster=test-cluster | grep PipelineLaunchTask
 
 ```bash
 # View full ingress configuration
-kubectl get ingress my-streamer-streamer-10x-test-cluster -o yaml
+kubectl get ingress my-retriever-retriever-10x-test-cluster -o yaml
 
 # Check ingress paths
-kubectl get ingress my-streamer-streamer-10x-test-cluster \
+kubectl get ingress my-retriever-retriever-10x-test-cluster \
   -o jsonpath='{.spec.rules[0].http.paths[*].path}' && echo
 ```
 
@@ -485,7 +485,7 @@ kubectl logs -n ingress-nginx deployment/ingress-nginx-controller --tail=50
 
 **Symptoms:**
 ```
-my-streamer-streamer-10x-test-cluster   0/1     Pending   0          5m
+my-retriever-retriever-10x-test-cluster   0/1     Pending   0          5m
 ```
 
 **Solutions:**
@@ -504,7 +504,7 @@ minikube start --memory=8192 --cpus=4
 
 **Symptoms:**
 ```
-curl: (28) Failed to connect to streamer.local port 80: Connection timed out
+curl: (28) Failed to connect to retriever.local port 80: Connection timed out
 ```
 
 **Solutions:**
@@ -516,11 +516,11 @@ minikube tunnel  # In a separate terminal
 kubectl get ingress
 
 # 3. Check hosts file has correct IP
-cat /etc/hosts | grep streamer  # macOS/Linux
-type C:\Windows\System32\drivers\etc\hosts | findstr streamer  # Windows
+cat /etc/hosts | grep retriever  # macOS/Linux
+type C:\Windows\System32\drivers\etc\hosts | findstr retriever  # Windows
 
 # 4. Use port-forward instead
-kubectl port-forward svc/my-streamer-streamer-10x-test-cluster 8080:80
+kubectl port-forward svc/my-retriever-retriever-10x-test-cluster 8080:80
 curl http://localhost:8080/metrics/load
 ```
 
@@ -534,14 +534,14 @@ HTTP 404: endpoint not found
 **Solutions:**
 ```bash
 # 1. Check ingress paths are correct
-kubectl get ingress my-streamer-streamer-10x-test-cluster \
+kubectl get ingress my-retriever-retriever-10x-test-cluster \
   -o jsonpath='{.spec.rules[0].http.paths[*].path}' && echo
 
 # 2. Verify you're using the correct cluster role
-kubectl get ingress my-streamer-streamer-10x-test-cluster -o yaml | grep -A 5 paths
+kubectl get ingress my-retriever-retriever-10x-test-cluster -o yaml | grep -A 5 paths
 
 # 3. Check service endpoints
-kubectl get endpoints my-streamer-streamer-10x-test-cluster
+kubectl get endpoints my-retriever-retriever-10x-test-cluster
 ```
 
 ### Issue 4: Helm Install Fails - Ingress Webhook
@@ -562,7 +562,7 @@ kubectl wait --namespace ingress-nginx \
   --timeout=120s
 
 # Then try helm install again
-helm install my-streamer . -f test-values.yaml
+helm install my-retriever . -f test-values.yaml
 ```
 
 ### Issue 5: AWS Credentials Not Working
@@ -593,7 +593,7 @@ When you're done testing:
 
 ```bash
 # Uninstall the chart
-helm uninstall my-streamer
+helm uninstall my-retriever
 
 # Stop minikube tunnel (if running)
 # Ctrl+C in the tunnel terminal
@@ -615,9 +615,9 @@ For testing with TLS:
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key -out tls.crt \
-  -subj "/CN=streamer.local"
+  -subj "/CN=retriever.local"
 
-kubectl create secret tls streamer-tls-secret \
+kubectl create secret tls retriever-tls-secret \
   --cert=tls.crt --key=tls.key
 ```
 
@@ -627,12 +627,12 @@ defaultIngress:
   tls:
     enabled: true
     source: "secret"
-    secretName: "streamer-tls-secret"
+    secretName: "retriever-tls-secret"
 ```
 
 3. Reinstall and access via HTTPS:
 ```bash
-curl -k https://streamer.local/metrics/load  # -k ignores self-signed cert warning
+curl -k https://retriever.local/metrics/load  # -k ignores self-signed cert warning
 ```
 
 ### Add Authentication
@@ -644,7 +644,7 @@ Example: Basic Auth with NGINX
 htpasswd -c auth admin
 # Enter password when prompted
 
-kubectl create secret generic streamer-basic-auth --from-file=auth
+kubectl create secret generic retriever-basic-auth --from-file=auth
 ```
 
 2. Update `test-values.yaml`:
@@ -652,13 +652,13 @@ kubectl create secret generic streamer-basic-auth --from-file=auth
 defaultIngress:
   annotations:
     nginx.ingress.kubernetes.io/auth-type: basic
-    nginx.ingress.kubernetes.io/auth-secret: streamer-basic-auth
+    nginx.ingress.kubernetes.io/auth-secret: retriever-basic-auth
     nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
 ```
 
 3. Test with credentials:
 ```bash
-curl -u admin:password http://streamer.local/metrics/load
+curl -u admin:password http://retriever.local/metrics/load
 ```
 
 ### Production Deployment

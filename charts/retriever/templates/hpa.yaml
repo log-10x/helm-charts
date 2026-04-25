@@ -4,15 +4,15 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  name: {{ include "log10x-retriever.fullname" $ }}-{{ $cluster.name }}
   labels:
-    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    {{- include "log10x-retriever.labels" $ | nindent 4 }}
     cluster: {{ $cluster.name }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+    name: {{ include "log10x-retriever.fullname" $ }}-{{ $cluster.name }}
   minReplicas: {{ $cluster.autoscaling.minReplicas | default 1 }}
   maxReplicas: {{ $cluster.autoscaling.maxReplicas | default 5 }}
   metrics:

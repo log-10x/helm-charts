@@ -1,0 +1,10 @@
+apiVersion: v2
+description: Official Log10x helm chart for SQS-based Retriever Quarkus deployment with optional Ingress support
+home: https://github.com/log-10x/helm-charts
+maintainers:
+  - email: engineering@log10x.com
+    name: log10x
+name: retriever-10x
+type: application
+version: 1.0.0
+appVersion: 1.0.0
