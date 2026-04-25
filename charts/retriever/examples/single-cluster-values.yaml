@@ -118,4 +118,4 @@ serviceAccount:
   create: true
   # For production with AWS IRSA, uncomment and configure:
   # annotations:
-  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/tenx-streamer-role
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/tenx-retriever-role

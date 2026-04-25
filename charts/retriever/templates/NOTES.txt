@@ -18,7 +18,7 @@ The following clusters have been deployed:
 {{- end }}
 
 To check the status of your deployments:
-  kubectl get deployments -l app={{ include "log10x-streamer.name" . }}
+  kubectl get deployments -l app={{ include "log10x-retriever.name" . }}
 
 To view the logs:
 {{- range $index, $cluster := .Values.clusters }}
@@ -26,7 +26,7 @@ To view the logs:
 {{- end }}
 
 To check pod health:
-  kubectl get pods -l app={{ include "log10x-streamer.name" . }}
+  kubectl get pods -l app={{ include "log10x-retriever.name" . }}
 
 {{- $hasAnyIngress := false }}
 {{- range .Values.clusters }}
@@ -85,10 +85,10 @@ Ingress Configuration:
     {{- end }}
     Exposed endpoints:
     {{- if $hasIndexRole }}
-      * POST {{ $protocol }}://{{ $host }}/streamer/index - Index files
+      * POST {{ $protocol }}://{{ $host }}/retriever/index - Index files
     {{- end }}
     {{- if $hasQueryRole }}
-      * POST {{ $protocol }}://{{ $host }}/streamer/query - Run queries
+      * POST {{ $protocol }}://{{ $host }}/retriever/query - Run queries
     {{- end }}
       * GET {{ $protocol }}://{{ $host }}/metrics/load - View load metrics
 {{- end }}
@@ -116,11 +116,11 @@ Ingress Configuration:
     defaultIngress.annotations:
       nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.0.0/8,192.168.1.0/24"
 
-  For more security options, visit: https://github.com/log-10x/helm-charts/tree/main/charts/streamer
+  For more security options, visit: https://github.com/log-10x/helm-charts/tree/main/charts/retriever
 {{- end }}
 
 To view ingress resources:
-  kubectl get ingress -l app={{ include "log10x-streamer.name" . }}
+  kubectl get ingress -l app={{ include "log10x-retriever.name" . }}
 {{- end }}
 
 {{- $hasStreamWorker := false }}
@@ -160,7 +160,7 @@ Fluent-bit Configuration:
   {{- end }}
 {{- else if eq .Values.fluentBit.output.type "datadog" }}
   - Datadog Host: {{ .Values.fluentBit.output.config.datadog.host | default "http-intake.logs.datadoghq.com" }}
-  - Service: {{ .Values.fluentBit.output.config.datadog.service | default "log10x-streamer" }}
+  - Service: {{ .Values.fluentBit.output.config.datadog.service | default "log10x-retriever" }}
   {{- if not .Values.fluentBit.output.config.datadog.apiKey }}
   - WARNING: Datadog API key not set! Use --set-string fluentBit.output.config.datadog.apiKey=<key>
   {{- end }}
@@ -201,7 +201,7 @@ To check logs for a specific job:
   kubectl logs job/<job-name>
 
 To manually trigger a scheduled query:
-  kubectl create job --from=cronjob/{{ include "log10x-streamer.fullname" . }}-scheduled-query-<schedule-name> <manual-job-name>
+  kubectl create job --from=cronjob/{{ include "log10x-retriever.fullname" . }}-scheduled-query-<schedule-name> <manual-job-name>
 {{- end }}
 
 For more information, visit: https://github.com/log-10x/helm-charts

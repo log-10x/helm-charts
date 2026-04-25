@@ -19,12 +19,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}-tls
+  name: {{ include "log10x-retriever.fullname" $ }}-{{ $cluster.name }}-tls
   labels:
-    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    {{- include "log10x-retriever.labels" $ | nindent 4 }}
     cluster: {{ $cluster.name }}
 spec:
-  secretName: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}-tls-cert
+  secretName: {{ include "log10x-retriever.fullname" $ }}-{{ $cluster.name }}-tls-cert
   {{- $issuerRef := dict }}
   {{- $certManagerConfig := $tlsConfig.certManager | default dict }}
   {{- if $certManagerConfig }}

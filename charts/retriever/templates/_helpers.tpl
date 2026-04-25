@@ -1,7 +1,7 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "log10x-streamer.name" -}}
+{{- define "log10x-retriever.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
@@ -10,7 +10,7 @@ Create a default fully qualified app name.
 We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
 If release name contains chart name it will be used as a full name.
 */}}
-{{- define "log10x-streamer.fullname" -}}
+{{- define "log10x-retriever.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -26,15 +26,15 @@ If release name contains chart name it will be used as a full name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "log10x-streamer.chart" -}}
+{{- define "log10x-retriever.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "log10x-streamer.labels" -}}
-helm.sh/chart: {{ include "log10x-streamer.chart" . }}
+{{- define "log10x-retriever.labels" -}}
+helm.sh/chart: {{ include "log10x-retriever.chart" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -44,9 +44,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "log10x-streamer.serviceAccountName" -}}
+{{- define "log10x-retriever.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "log10x-streamer.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "log10x-retriever.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
@@ -56,7 +56,7 @@ Create the name of the service account to use
 Check if any Git cloning is needed
 Returns "true" if either config.git or symbols.git is enabled
 */}}
-{{- define "log10x-streamer.gitEnabled" -}}
+{{- define "log10x-retriever.gitEnabled" -}}
 {{- if or (and .Values.config .Values.config.git .Values.config.git.enabled) (and .Values.symbols .Values.symbols.git .Values.symbols.git.enabled) -}}
 true
 {{- end -}}
@@ -65,7 +65,7 @@ true
 {{/*
 Check if any config/symbols loading is enabled (git or volume)
 */}}
-{{- define "log10x-streamer.configEnabled" -}}
+{{- define "log10x-retriever.configEnabled" -}}
 {{- if or (and .Values.config .Values.config.git .Values.config.git.enabled) (and .Values.config .Values.config.volume .Values.config.volume.enabled) (and .Values.symbols .Values.symbols.git .Values.symbols.git.enabled) (and .Values.symbols .Values.symbols.volume .Values.symbols.volume.enabled) -}}
 true
 {{- end -}}
@@ -75,7 +75,7 @@ true
 Git init container definition
 Clones config and/or symbols repositories to an emptyDir volume
 */}}
-{{- define "log10x-streamer.gitInitContainer" -}}
+{{- define "log10x-retriever.gitInitContainer" -}}
 - name: tenx-git-config
   image: "{{ .Values.configFetcherImage.repository }}:{{ .Values.configFetcherImage.tag }}"
   imagePullPolicy: {{ .Values.configFetcherImage.pullPolicy }}
@@ -83,7 +83,7 @@ Clones config and/or symbols repositories to an emptyDir volume
     - name: GIT_TOKEN
       valueFrom:
         secretKeyRef:
-          name: {{ include "log10x-streamer.fullname" . }}-git-token
+          name: {{ include "log10x-retriever.fullname" . }}-git-token
           key: token
   args:
     {{- if and .Values.config .Values.config.git .Values.config.git.enabled }}
@@ -116,7 +116,7 @@ Generate environment variables for cluster roles
 Takes a dict with keys: cluster (cluster object), values (root values object)
 Generates env vars based on roles array and global queue URLs
 */}}
-{{- define "log10x-streamer.roleEnvVars" -}}
+{{- define "log10x-retriever.roleEnvVars" -}}
 {{- $cluster := .cluster -}}
 {{- $values := .values -}}
 {{- $hasIndex := has "index" $cluster.roles -}}
@@ -157,7 +157,7 @@ Generates env vars based on roles array and global queue URLs
 {{/*
 Ingress ApiVersion according to Kubernetes version
 */}}
-{{- define "log10x-streamer.ingress.apiVersion" -}}
+{{- define "log10x-retriever.ingress.apiVersion" -}}
 {{- if and (.Capabilities.APIVersions.Has "networking.k8s.io/v1") (semverCompare ">=1.19-0" .Capabilities.KubeVersion.GitVersion) -}}
 networking.k8s.io/v1
 {{- else if and (.Capabilities.APIVersions.Has "networking.k8s.io/v1beta1") (semverCompare ">=1.14-0" .Capabilities.KubeVersion.GitVersion) -}}
@@ -170,29 +170,29 @@ extensions/v1beta1
 {{/*
 Return if ingress is stable (networking.k8s.io/v1)
 */}}
-{{- define "log10x-streamer.ingress.isStable" -}}
-{{- eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1" -}}
+{{- define "log10x-retriever.ingress.isStable" -}}
+{{- eq (include "log10x-retriever.ingress.apiVersion" .) "networking.k8s.io/v1" -}}
 {{- end -}}
 
 {{/*
 Return if ingress supports ingressClassName
 */}}
-{{- define "log10x-streamer.ingress.supportsIngressClassName" -}}
-{{- or (eq (include "log10x-streamer.ingress.isStable" .) "true") (and (eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
+{{- define "log10x-retriever.ingress.supportsIngressClassName" -}}
+{{- or (eq (include "log10x-retriever.ingress.isStable" .) "true") (and (eq (include "log10x-retriever.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
 {{- end -}}
 
 {{/*
 Return if ingress supports pathType
 */}}
-{{- define "log10x-streamer.ingress.supportsPathType" -}}
-{{- or (eq (include "log10x-streamer.ingress.isStable" .) "true") (and (eq (include "log10x-streamer.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
+{{- define "log10x-retriever.ingress.supportsPathType" -}}
+{{- or (eq (include "log10x-retriever.ingress.isStable" .) "true") (and (eq (include "log10x-retriever.ingress.apiVersion" .) "networking.k8s.io/v1beta1") (semverCompare ">= 1.18-0" .Capabilities.KubeVersion.Version)) -}}
 {{- end -}}
 
 {{/*
 Generate TLS secret name for cluster ingress
 Expects dict with keys: cluster, root
 */}}
-{{- define "log10x-streamer.cluster.ingress.tlsSecretName" -}}
+{{- define "log10x-retriever.cluster.ingress.tlsSecretName" -}}
 {{- $cluster := .cluster -}}
 {{- $root := .root -}}
 {{- $ingressConfig := $cluster.ingress | default dict -}}
@@ -201,7 +201,7 @@ Expects dict with keys: cluster, root
 {{- if eq $tlsSource "secret" -}}
 {{ $tlsConfig.secretName | default $root.Values.defaultIngress.tls.secretName }}
 {{- else if eq $tlsSource "cert-manager" -}}
-{{ include "log10x-streamer.fullname" $root }}-{{ $cluster.name }}-tls-cert
+{{ include "log10x-retriever.fullname" $root }}-{{ $cluster.name }}-tls-cert
 {{- else if eq $tlsSource "alb" -}}
 ""
 {{- end -}}
@@ -211,7 +211,7 @@ Expects dict with keys: cluster, root
 Check if cluster has 'index' role
 Expects dict with keys: cluster
 */}}
-{{- define "log10x-streamer.cluster.hasIndexRole" -}}
+{{- define "log10x-retriever.cluster.hasIndexRole" -}}
 {{- $cluster := .cluster -}}
 {{- has "index" $cluster.roles -}}
 {{- end -}}
@@ -220,7 +220,7 @@ Expects dict with keys: cluster
 Check if cluster has 'query' role
 Expects dict with keys: cluster
 */}}
-{{- define "log10x-streamer.cluster.hasQueryRole" -}}
+{{- define "log10x-retriever.cluster.hasQueryRole" -}}
 {{- $cluster := .cluster -}}
 {{- has "query" $cluster.roles -}}
 {{- end -}}

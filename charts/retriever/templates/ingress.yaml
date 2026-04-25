@@ -1,7 +1,7 @@
-{{- $ingressApiIsStable := eq (include "log10x-streamer.ingress.isStable" .) "true" -}}
-{{- $ingressSupportsIngressClassName := eq (include "log10x-streamer.ingress.supportsIngressClassName" .) "true" -}}
-{{- $ingressSupportsPathType := eq (include "log10x-streamer.ingress.supportsPathType" .) "true" -}}
-{{- $fullName := include "log10x-streamer.fullname" . -}}
+{{- $ingressApiIsStable := eq (include "log10x-retriever.ingress.isStable" .) "true" -}}
+{{- $ingressSupportsIngressClassName := eq (include "log10x-retriever.ingress.supportsIngressClassName" .) "true" -}}
+{{- $ingressSupportsPathType := eq (include "log10x-retriever.ingress.supportsPathType" .) "true" -}}
+{{- $fullName := include "log10x-retriever.fullname" . -}}
 
 {{- range $index, $cluster := .Values.clusters }}
 {{- $ingressConfig := $cluster.ingress | default dict -}}
@@ -14,12 +14,12 @@
 {{- $hasQueryRole := has "query" $cluster.roles -}}
 {{- if or $hasIndexRole $hasQueryRole }}
 ---
-apiVersion: {{ include "log10x-streamer.ingress.apiVersion" $ }}
+apiVersion: {{ include "log10x-retriever.ingress.apiVersion" $ }}
 kind: Ingress
 metadata:
   name: {{ $fullName }}-{{ $cluster.name }}
   labels:
-    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    {{- include "log10x-retriever.labels" $ | nindent 4 }}
     cluster: {{ $cluster.name }}
   {{- $defaultAnnotations := $.Values.defaultIngress.annotations | default dict }}
   {{- $clusterAnnotations := $ingressConfig.annotations | default dict }}
@@ -48,7 +48,7 @@ spec:
   tls:
     - hosts:
         - {{ $host | quote }}
-      secretName: {{ include "log10x-streamer.cluster.ingress.tlsSecretName" (dict "cluster" $cluster "root" $) }}
+      secretName: {{ include "log10x-retriever.cluster.ingress.tlsSecretName" (dict "cluster" $cluster "root" $) }}
   {{- end }}
 
   rules:
@@ -57,7 +57,7 @@ spec:
       http:
         paths:
           {{- if $hasIndexRole }}
-          - path: /streamer/index
+          - path: /retriever/index
             {{- if $ingressSupportsPathType }}
             pathType: Prefix
             {{- end }}
@@ -73,7 +73,7 @@ spec:
               {{- end }}
           {{- end }}
           {{- if $hasQueryRole }}
-          - path: /streamer/query
+          - path: /retriever/query
             {{- if $ingressSupportsPathType }}
             pathType: Prefix
             {{- end }}
