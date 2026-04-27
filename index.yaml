@@ -143,6 +143,21 @@ entries:
     version: 0.9.0
   reporter-10x:
   - apiVersion: v2
+    appVersion: 1.0.9
+    created: "2026-04-27T18:06:44.027248515Z"
+    description: Official Log10x helm chart for non-invasive edge log reporting via
+      a parallel DaemonSet
+    digest: 0edde67e44a47812252c825d102b780431ef8ca7883386b3f998b7310ce2b795
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: reporter-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/reporter-10x-1.0.9/reporter-10x-1.0.9.tgz
+    version: 1.0.9
+  - apiVersion: v2
     appVersion: 1.0.7
     created: "2026-04-21T15:57:32.470863525Z"
     description: Official Log10x helm chart for non-invasive edge log reporting via
@@ -158,6 +173,21 @@ entries:
     - https://github.com/log-10x/helm-charts/releases/download/reporter-10x-1.0.7/reporter-10x-1.0.7.tgz
     version: 1.0.7
   retriever-10x:
+  - apiVersion: v2
+    appVersion: 1.0.9
+    created: "2026-04-27T18:06:44.187481491Z"
+    description: Official Log10x helm chart for SQS-based Retriever Quarkus deployment
+      with optional Ingress support
+    digest: 1d55cf7fa2d976d5034b77076d3b79a53ba9c6a9660dcdf58f77276d8ba1ba97
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: retriever-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/retriever-10x-1.0.9/retriever-10x-1.0.9.tgz
+    version: 1.0.9
   - apiVersion: v2
     appVersion: 1.0.0
     created: "2026-04-25T03:35:41.779180196Z"
@@ -324,4 +354,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-04-25T03:35:41.779230628Z"
+generated: "2026-04-27T18:06:44.187530863Z"
