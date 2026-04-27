@@ -7,17 +7,17 @@ Helm charts for deploying Log10x pipelines
 
 [Log10x](https://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
-## Log10x Streamer
+## Log10x Reporter
 
-The [Log10x Streamer](https://github.com/log-10x/helm-charts/tree/main/charts/streamer) chart deploys long-living SQS-based streaming clusters for indexing, querying, and streaming log data on demand, with fluent-bit sidecars for output delivery.
+The [Log10x Reporter](https://github.com/log-10x/helm-charts/tree/main/charts/reporter) chart deploys a non-invasive parallel DaemonSet that tails container logs and ships them to a co-located Log10x engine sidecar for cost visibility and pattern analysis, without replacing your existing log forwarder.
+
+For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/edge
+
+## Log10x Retriever
+
+The [Log10x Retriever](https://github.com/log-10x/helm-charts/tree/main/charts/retriever) chart deploys long-living SQS-based clusters for indexing, querying, and streaming log data on demand, with fluent-bit sidecars for output delivery.
 
 For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/quarkus
-
-## Log10x Cron
-
-The [Log10x Cron](https://github.com/log-10x/helm-charts/tree/main/charts/cron) chart sets up periodic cron jobs for running pre-defined Log10x pipelines based on a schedule.
-
-For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/pipeline
 
 ## Usage
 
