@@ -143,6 +143,21 @@ entries:
     version: 0.9.0
   reporter-10x:
   - apiVersion: v2
+    appVersion: 1.0.19
+    created: "2026-05-02T19:49:21.012460582Z"
+    description: Official Log10x helm chart for non-invasive edge log reporting via
+      a parallel DaemonSet
+    digest: bcfb9c2b3fcb0da9d516ca076e6c16c9624a1ff03943d3ac75c6aab049b0545e
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: reporter-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/reporter-10x-1.0.15/reporter-10x-1.0.15.tgz
+    version: 1.0.15
+  - apiVersion: v2
     appVersion: 1.0.17
     created: "2026-05-02T16:30:32.435132735Z"
     description: Official Log10x helm chart for non-invasive edge log reporting via
@@ -429,4 +444,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-05-02T16:30:32.435213957Z"
+generated: "2026-05-02T19:49:21.01253456Z"
