@@ -12,9 +12,9 @@ Fluent Bit tails container logs, forwards them via Unix socket to the
 Log10x sidecar for analysis and metrics reporting. Logs are NOT forwarded
 to any external destination.
 
-{{- if not .Values.log10xApiKey }}
+{{- if not .Values.log10xLicenseJwt }}
 
-WARNING: No API key configured. Set log10xApiKey to enable metrics reporting.
+WARNING: No license configured. Set log10xLicenseJwt to enable the engine — download a JWT from https://console.log10x.com.
 {{- end }}
 
 To check the status:

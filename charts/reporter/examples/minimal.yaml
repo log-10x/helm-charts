@@ -3,7 +3,7 @@
 #
 # Usage:
 #   helm install log10x-reporter ./charts/reporter -f examples/minimal.yaml \
-#     --set log10xApiKey="YOUR-API-KEY"
+#     --set log10xLicenseJwt="$(cat license.jwt)"
 
-log10xApiKey: ""  # Set via --set or separate secrets file
+log10xLicenseJwt: ""  # Set via --set or separate secrets file
 runtimeName: "my-reporter"

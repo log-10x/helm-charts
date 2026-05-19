@@ -106,25 +106,27 @@ imagePullSecrets: []
 
 ###### Log10x settings ######
 
-# API key for Log10x - stored as a Kubernetes secret and injected into pods
-# via environment variable TENX_API_KEY
-# SECURITY WARNING: Do not commit actual API keys to version control
-# Provide via: --set log10xApiKey="your-key" or separate values file
-log10xApiKey: ""
+# Log10x license JWT — required for the engine to start. Download from
+# https://console.log10x.com. The chart creates a Kubernetes Secret from
+# this value and mounts it as a file in the engine container, with
+# TENX_LICENSE_FILE pointing at it.
+# SECURITY WARNING: Do not commit actual license JWTs to version control.
+# Provide via: --set log10xLicenseJwt="$(cat license.jwt)" or a separate values file.
+log10xLicenseJwt: ""
 
 # Specify name for the 10x runtime
 # If empty, will use default from 10x configuration
 runtimeName: ""
 
-# API key secret configuration
-apiKeySecret:
-  # If true, create a new secret with the log10xApiKey value above
-  # If false, use an existing secret specified by existingSecret
+# License Secret configuration
+licenseSecret:
+  # If true, create a new Secret from the log10xLicenseJwt value above.
+  # If false, use an existing Secret specified by existingSecret.
   create: true
-  # Name of an existing Kubernetes secret to use (only used when create=false)
+  # Name of an existing Kubernetes Secret to use (only used when create=false).
   existingSecret: ""
-  # The key name within the secret that contains the API key
-  secretKey: "api-key"
+  # The key name within the Secret that contains the license JWT.
+  secretKey: "license-jwt"
 
 # Git access token for private repositories (config and/or symbols)
 # Used by the git-config-fetcher init container

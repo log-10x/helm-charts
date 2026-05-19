@@ -3,10 +3,10 @@
 #
 # Usage:
 #   helm install log10x-reporter ./charts/reporter -f examples/gitops.yaml \
-#     --set log10xApiKey="YOUR-API-KEY" \
+#     --set log10xLicenseJwt="$(cat license.jwt)" \
 #     --set gitToken="YOUR-GIT-TOKEN"
 
-log10xApiKey: ""  # Set via --set or separate secrets file
+log10xLicenseJwt: ""  # Set via --set or separate secrets file
 gitToken: ""      # Set via --set or separate secrets file
 
 runtimeName: "my-gitops-reporter"

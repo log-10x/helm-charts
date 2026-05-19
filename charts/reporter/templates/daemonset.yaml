@@ -124,19 +124,8 @@ spec:
           image: {{ include "log10x-reporter.tenxImage" . | quote }}
           imagePullPolicy: {{ .Values.tenx.image.pullPolicy }}
           env:
-            - name: TENX_API_KEY
-            {{- if and .Values.log10xApiKey (ne .Values.log10xApiKey "") }}
-              valueFrom:
-                secretKeyRef:
-                  {{- if .Values.apiKeySecret.create }}
-                  name: {{ include "log10x-reporter.fullname" . }}-api-key
-                  {{- else }}
-                  name: {{ .Values.apiKeySecret.existingSecret }}
-                  {{- end }}
-                  key: {{ .Values.apiKeySecret.secretKey }}
-            {{- else }}
-              value: "NO-API-KEY"
-            {{- end }}
+            - name: TENX_LICENSE_FILE
+              value: /etc/tenx/license/license.jwt
             {{- if .Values.runtimeName }}
             - name: TENX_RUNTIME_NAME
               value: {{ .Values.runtimeName | quote }}
@@ -177,6 +166,9 @@ spec:
           volumeMounts:
             - name: tenx-sockets
               mountPath: {{ dir .Values.tenx.socketPath }}
+            - name: tenx-license
+              mountPath: /etc/tenx/license
+              readOnly: true
             {{- if $gitInit }}
             - name: tenx-git
               mountPath: /etc/tenx/git
@@ -195,6 +187,12 @@ spec:
             name: {{ include "log10x-reporter.fullname" . }}
         - name: tenx-sockets
           emptyDir: {}
+        - name: tenx-license
+          secret:
+            secretName: {{ if .Values.licenseSecret.create }}{{ include "log10x-reporter.fullname" . }}-license{{ else }}{{ .Values.licenseSecret.existingSecret }}{{ end }}
+            items:
+              - key: {{ .Values.licenseSecret.secretKey }}
+                path: license.jwt
         - name: varlog
           hostPath:
             path: /var/log

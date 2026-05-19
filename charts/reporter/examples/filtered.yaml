@@ -3,9 +3,9 @@
 #
 # Usage:
 #   helm install log10x-reporter ./charts/reporter -f examples/filtered.yaml \
-#     --set log10xApiKey="YOUR-API-KEY"
+#     --set log10xLicenseJwt="$(cat license.jwt)"
 
-log10xApiKey: ""  # Set via --set or separate secrets file
+log10xLicenseJwt: ""  # Set via --set or separate secrets file
 runtimeName: "my-filtered-reporter"
 
 # Only collect logs from these namespaces
