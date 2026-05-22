@@ -126,6 +126,10 @@ spec:
           env:
             - name: TENX_LICENSE_FILE
               value: /etc/tenx/license/license.jwt
+            {{- if .Values.airgapped }}
+            - name: TENX_AIRGAPPED
+              value: "true"
+            {{- end }}
             {{- if .Values.runtimeName }}
             - name: TENX_RUNTIME_NAME
               value: {{ .Values.runtimeName | quote }}
@@ -146,11 +150,14 @@ spec:
             {{- end }}
             - name: TENX_FORWARD_INPUT_ADDRESS
               value: {{ .Values.tenx.socketPath | quote }}
-            {{- with .Values.tenxExtraEnv }}
+            {{- with .Values.tenx.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           args:
             {{- toYaml .Values.tenx.args | nindent 12 }}
+            {{- with .Values.tenx.extraArgs }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- with .Values.tenx.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}

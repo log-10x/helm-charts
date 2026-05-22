@@ -12,7 +12,16 @@ Fluent Bit tails container logs, forwards them via Unix socket to the
 Log10x sidecar for analysis and metrics reporting. Logs are NOT forwarded
 to any external destination.
 
-{{- if not .Values.log10xLicenseJwt }}
+{{- if and .Values.licenseSecret.create .Values.log10xLicenseJwt }}
+
+NOTE: A license JWT was passed inline via 'log10xLicenseJwt'. The chart materialized it into a Kubernetes Secret, but the raw value is still visible in your release values (helm get values {{ .Release.Name }} -n {{ .Release.Namespace }}).
+For production, prefer pre-creating a Secret out of band and referencing it:
+
+  licenseSecret:
+    create: false
+    existingSecret: <your-secret-name>
+    secretKey: license-jwt
+{{- else if and .Values.licenseSecret.create (not .Values.log10xLicenseJwt) }}
 
 WARNING: No license configured. Set log10xLicenseJwt to enable the engine — download a JWT from https://console.log10x.com.
 {{- end }}

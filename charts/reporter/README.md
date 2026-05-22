@@ -109,6 +109,18 @@ The chart automatically:
 - Injects it via the `GIT_TOKEN` environment variable using a `secretKeyRef` (not visible in pod specs)
 - Only mounts the token into pods that have git integration enabled
 
+### Airgapped mode
+
+For clusters that have no path to the Log10x SaaS (security policy, isolated network, etc.), enable airgapped mode:
+
+```yaml
+airgapped: true
+```
+
+When enabled, the engine verifies the license JWT locally against the embedded public key and makes **zero** outbound calls to the Log10x gateway — no startup validation, no metrics reporting, no user-attribute enrichment. Customer-configured outputs (Splunk, Datadog, Elastic, etc.) are unaffected.
+
+`demo` and `limited` license types cannot run airgapped — if `airgapped: true` is set with one of these types, the engine logs a warning and runs in online mode anyway.
+
 ### Log filtering
 
 Control which container logs the DaemonSet collects:
@@ -210,9 +222,10 @@ extraEnv:
     value: "debug"
 
 # 10x sidecar container
-tenxExtraEnv:
-  - name: TENX_DEBUG
-    value: "true"
+tenx:
+  extraEnv:
+    - name: TENX_DEBUG
+      value: "true"
 ```
 
 ## Under the hood
