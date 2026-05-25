@@ -49,7 +49,7 @@ itself is open source, **using Log10x requires a commercial license**.
 **What this means:**
 - You can freely use, modify, and distribute these Helm charts
 - The Log10x software that these charts deploy requires a paid subscription
-- A valid Log10x API key is required to run the deployed software
+- A valid Log10x license is required to run the deployed software
 
 **Get Started:**
 - [Log10x Pricing](https://log10x.com/pricing)
