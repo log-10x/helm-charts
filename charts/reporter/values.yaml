@@ -62,8 +62,17 @@ tenx:
   # The Unix socket path is set via the TENX_FORWARD_INPUT_ADDRESS env var
   # (from socketPath below), picked up by the forward input config.
   args:
-    - "run"
     - "@apps/reporter"
+
+  # Additional CLI arguments appended after `args` above. Use this to layer
+  # on extra modules or flags without overriding the default `@apps/reporter`.
+  extraArgs: []
+  #  - "@run/output/metric/prometheus/remote-write"
+
+  # Additional environment variables for the 10x sidecar container
+  extraEnv: []
+  #  - name: MY_VAR
+  #    value: "SOME_VALUE"
 
   # Unix socket path for Fluent Bit → 10x communication
   # Must match between the Fluent Bit forward output and 10x input
@@ -97,7 +106,7 @@ tenx:
 # Used to clone config/symbols repositories when git integration is enabled
 configFetcherImage:
   repository: log10x/git-config-fetcher
-  tag: "0.9.7"
+  tag: "1.0.0"
   pullPolicy: IfNotPresent
 
 # When replacing the image to your own custom one, allows for setting
@@ -106,25 +115,36 @@ imagePullSecrets: []
 
 ###### Log10x settings ######
 
-# API key for Log10x - stored as a Kubernetes secret and injected into pods
-# via environment variable TENX_API_KEY
-# SECURITY WARNING: Do not commit actual API keys to version control
-# Provide via: --set log10xApiKey="your-key" or separate values file
-log10xApiKey: ""
+# Log10x license JWT — required for the engine to start. Download from
+# https://console.log10x.com. The chart creates a Kubernetes Secret from
+# this value and mounts it as a file in the engine container, with
+# TENX_LICENSE_FILE pointing at it.
+# SECURITY WARNING: Do not commit actual license JWTs to version control.
+# Provide via: --set log10xLicenseJwt="$(cat license.jwt)" or a separate values file.
+log10xLicenseJwt: ""
 
 # Specify name for the 10x runtime
 # If empty, will use default from 10x configuration
 runtimeName: ""
 
-# API key secret configuration
-apiKeySecret:
-  # If true, create a new secret with the log10xApiKey value above
-  # If false, use an existing secret specified by existingSecret
+# Run the 10x engine airgapped — license is verified locally and no outbound
+# calls are made to the 10x SaaS gateway (no startup validation, no metrics
+# reporting, no user-attribute enrichment). Use for clusters that have no path
+# to the vendor SaaS (security policy, isolated network, etc.).
+#
+# Note: 'demo' and 'limited' license types cannot run airgapped — if set with
+# one of these types, the engine logs a warning and runs in online mode anyway.
+airgapped: false
+
+# License Secret configuration
+licenseSecret:
+  # If true, create a new Secret from the log10xLicenseJwt value above.
+  # If false, use an existing Secret specified by existingSecret.
   create: true
-  # Name of an existing Kubernetes secret to use (only used when create=false)
+  # Name of an existing Kubernetes Secret to use (only used when create=false).
   existingSecret: ""
-  # The key name within the secret that contains the API key
-  secretKey: "api-key"
+  # The key name within the Secret that contains the license JWT.
+  secretKey: "license-jwt"
 
 # Git access token for private repositories (config and/or symbols)
 # Used by the git-config-fetcher init container
@@ -204,9 +224,6 @@ updateStrategy:
 extraEnv: []
 #  - name: MY_VAR
 #    value: "SOME_VALUE"
-
-# Additional environment variables for the 10x sidecar container
-tenxExtraEnv: []
 
 # Additional volumes and volume mounts
 extraVolumes: []

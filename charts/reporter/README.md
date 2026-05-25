@@ -35,7 +35,7 @@ helm show values log10x/reporter-10x
 A minimal yaml setting up reporting is:
 
 ```yaml
-log10xApiKey: "YOUR-LOG10X-API-KEY"
+log10xLicenseJwt: "YOUR-LOG10X-LICENSE-JWT"
 ```
 
 That's all — defaults collect logs from all namespaces and ship them to the 10x sidecar with a ~250 Mi / 150m CPU per-node footprint (under 3% of a typical node).
@@ -46,32 +46,32 @@ For full chart options check out [values.yaml](values.yaml), or the [examples](h
 
 ### Secrets management
 
-#### Log10x API key
+#### Log10x license
 
-The chart requires a Log10x API key for authentication. By default, the chart creates a Kubernetes secret from the `log10xApiKey` value:
+The chart requires a Log10x license JWT for the engine to start. Download one from [console.log10x.com](https://console.log10x.com). By default, the chart creates a Kubernetes Secret from the `log10xLicenseJwt` value and mounts it as a file in the engine container (read via `TENX_LICENSE_FILE`):
 
 ```yaml
-log10xApiKey: "your-actual-api-key"
+log10xLicenseJwt: "your-actual-license-jwt"
 
-# API key secret configuration
-apiKeySecret:
-  create: true              # Create a new secret (default)
-  existingSecret: ""        # Use an existing secret instead
-  secretKey: "api-key"      # Key name within the secret
+# License Secret configuration
+licenseSecret:
+  create: true                # Create a new Secret (default)
+  existingSecret: ""          # Use an existing Secret instead
+  secretKey: "license-jwt"    # Key name within the Secret
 ```
 
-**Using an existing secret:**
+**Using an existing Secret:**
 
 ```yaml
-log10xApiKey: ""  # Leave empty when using existing secret
+log10xLicenseJwt: ""  # Leave empty when using existing Secret
 
-apiKeySecret:
+licenseSecret:
   create: false
   existingSecret: "my-existing-secret"
-  secretKey: "log10x-key"
+  secretKey: "log10x-license"
 ```
 
-**Security validation:** The chart will fail to deploy if `log10xApiKey` is empty when `apiKeySecret.create` is true.
+**Security validation:** The chart will fail to deploy if `log10xLicenseJwt` is empty when `licenseSecret.create` is true.
 
 #### Git access token
 
@@ -108,6 +108,18 @@ The chart automatically:
 - Creates a Kubernetes secret for the token (when `gitToken` is non-empty)
 - Injects it via the `GIT_TOKEN` environment variable using a `secretKeyRef` (not visible in pod specs)
 - Only mounts the token into pods that have git integration enabled
+
+### Airgapped mode
+
+For clusters that have no path to the Log10x SaaS (security policy, isolated network, etc.), enable airgapped mode:
+
+```yaml
+airgapped: true
+```
+
+When enabled, the engine verifies the license JWT locally against the embedded public key and makes **zero** outbound calls to the Log10x gateway — no startup validation, no metrics reporting, no user-attribute enrichment. Customer-configured outputs (Splunk, Datadog, Elastic, etc.) are unaffected.
+
+`demo` and `limited` license types cannot run airgapped — if `airgapped: true` is set with one of these types, the engine logs a warning and runs in online mode anyway.
 
 ### Log filtering
 
@@ -210,9 +222,10 @@ extraEnv:
     value: "debug"
 
 # 10x sidecar container
-tenxExtraEnv:
-  - name: TENX_DEBUG
-    value: "true"
+tenx:
+  extraEnv:
+    - name: TENX_DEBUG
+      value: "true"
 ```
 
 ## Under the hood
