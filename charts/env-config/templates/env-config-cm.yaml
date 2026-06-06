@@ -1,0 +1,14 @@
+{{- if .Values.envConfig.env_id }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: log10x-env-config-{{ .Values.envConfig.env_id }}
+  namespace: {{ .Release.Namespace | default "log10x" }}
+  labels:
+    app: log10x-env-config
+    log10x.com/env-id: "{{ .Values.envConfig.env_id }}"
+    log10x.com/env-nickname: "{{ .Values.envConfig.nickname }}"
+data:
+  env.json: |
+    {{- toJson .Values.envConfig | nindent 4 }}
+{{- end }}

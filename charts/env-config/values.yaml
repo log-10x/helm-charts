@@ -1,0 +1,65 @@
+# env-config-10x — Log10x environment descriptor chart.
+#
+# Renders a single ConfigMap named `log10x-env-config-<env_id>` in namespace `log10x`
+# (overridable via --namespace / Release.Namespace). The ConfigMap carries one key,
+# `env.json`, holding the entire `envConfig` block serialized as JSON.
+#
+# Consumers (Reporter, Receiver, Retriever, log10x-mcp) discover this ConfigMap by
+# the stable name `log10x-env-config-${env_id}`. The chart is NOT a Helm sub-chart
+# dependency of those charts — install it alongside them in the same release or as
+# a separate release in the same namespace.
+#
+# Empty `envConfig.env_id` is the explicit opt-out: no ConfigMap is rendered, and the
+# MCP resolver falls back to its env-var bridge.
+
+envConfig:
+  # REQUIRED — UUID identifying this environment. Empty string disables rendering.
+  # Field name matches the EnvironmentConfig schema in log10x-mcp/src/lib/env-config/types.ts.
+  env_id: ""
+  # REQUIRED — human-friendly label shown in the console and MCP responses.
+  nickname: ""
+  # Schema version for the env.json payload. Bump only when consumers expect a new shape.
+  schema_version: "1.0"
+
+  cluster:
+    # eks / gke / aks / kind / minikube / bare_metal / other
+    type: eks
+    region: ""
+    account: ""
+
+  destination:
+    # cloudwatch / datadog / splunk / elasticsearch / sumo / coralogix / new_relic / azure / gcp_logging
+    siem_vendor: cloudwatch
+    region: ""
+
+  streamer:
+    # In-cluster URL of the streamer/receiver ingress (e.g. http://tenx-receiver.log10x.svc:8080).
+    url: ""
+
+  retriever:
+    # In-cluster URL of the retriever HTTP API.
+    url: ""
+    # S3 bucket the retriever reads byte-range index entries from.
+    input_bucket: ""
+    # SQS queue URLs the retriever uses for its 4-stage pipeline.
+    query_queues:
+      index: ""
+      subquery: ""
+      stream: ""
+      query: ""
+
+  # Customer-owned offload destinations. The first entry is treated as primary by the MCP
+  # offload recipes. Multiple entries are allowed (e.g. primary + cold-archive).
+  offload_destinations:
+    - nickname: primary
+      # s3 / gcs / azure_blob
+      type: s3
+      # active / paused / draining
+      status: active
+      bucket: ""
+      region: ""
+      auth:
+        # irsa (IAM Roles for Service Accounts) / workload_identity / static_keys
+        method: irsa
+        # ServiceAccount name the receiver pod runs under when method=irsa.
+        sa: tenx-receiver
