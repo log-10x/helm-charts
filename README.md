@@ -5,7 +5,7 @@
 
 Helm charts for deploying Log10x pipelines
 
-[Log10x](https://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
+[Log10x](https://www.log10x.com/?utm_source=github&utm_medium=readme&utm_campaign=helm-charts&utm_content=hero) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
 ## Log10x Reporter
 
@@ -52,6 +52,6 @@ itself is open source, **using Log10x requires a commercial license**.
 - A valid Log10x license is required to run the deployed software
 
 **Get Started:**
-- [Log10x Pricing](https://log10x.com/pricing)
+- [Log10x Pricing](https://www.log10x.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=helm-charts&utm_content=footer)
 - [Documentation](https://doc.log10x.com)
 - [Contact Sales](mailto:sales@log10x.com)
