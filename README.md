@@ -5,7 +5,7 @@
 
 Helm charts for deploying Log10x pipelines
 
-[Log10x](https://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
+[Log10x](https://www.log10x.com/?utm_source=github&utm_medium=readme&utm_campaign=helm-charts&utm_content=hero) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
 ## Log10x Reporter
 
