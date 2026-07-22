@@ -5,7 +5,7 @@
   {{- end }}
 {{- end }}
 {{- if $hasStreamWorker }}
-{{- $validOutputs := list "stdout" "s3" "cloudwatch" "elasticsearch" "splunk" "datadog" }}
+{{- $validOutputs := list "stdout" "s3" "cloudwatch" "elasticsearch" "splunk" "datadog" "azure" }}
 {{- if .Values.fluentBit.output.type }}
   {{- if not (has .Values.fluentBit.output.type $validOutputs) }}
     {{- fail (printf "fluentBit.output.type '%s' is not valid. Must be one of: %s" .Values.fluentBit.output.type (join ", " $validOutputs)) }}

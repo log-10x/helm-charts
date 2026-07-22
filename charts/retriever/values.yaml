@@ -410,10 +410,10 @@ fluentBit:
 
   # Output configuration
   # This determines WHERE query results are delivered to users
-  # Available types: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+  # Available types: stdout, s3, cloudwatch, elasticsearch, splunk, datadog, azure
   output:
     # Output type - leave empty or set to "stdout" for default
-    # Must be one of: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+    # Must be one of: stdout, s3, cloudwatch, elasticsearch, splunk, datadog, azure
     type: stdout
 
     # Type-specific configuration (only used when type is not stdout)
@@ -464,6 +464,18 @@ fluentBit:
         apiKey: ""  # Provide via --set-string fluentBit.output.config.datadog.apiKey=<key>
         service: log10x-retriever
         source: log10x
+
+      # Azure Monitor Logs output configuration (used when type: azure)
+      # Sends via the Logs Ingestion API (DCE -> DCR -> table); supports Basic/Auxiliary plans.
+      # Authentication: Entra app; clientSecret stored in a secret (AZURE_CLIENT_SECRET env).
+      azure:
+        tenantId: ""
+        clientId: ""
+        clientSecret: ""  # Provide via --set-string fluentBit.output.config.azure.clientSecret=<secret>
+        dceUrl: ""        # https://<dce>.<region>.ingest.monitor.azure.com
+        dcrId: ""         # immutable Data Collection Rule id
+        streamName: ""    # BARE table name, e.g. Tenx_CL. The plugin sends to the DCR
+                          # stream Custom-<streamName>, so do NOT prefix with Custom-.
 
   # Advanced: Provide raw fluent-bit configuration
   # This overrides the output configuration above
