@@ -81,6 +81,18 @@ data:
         dd_service   {{ .Values.fluentBit.output.config.datadog.service | default "log10x-retriever" }}
         dd_source    {{ .Values.fluentBit.output.config.datadog.source | default "log10x" }}
         retry_limit  3
+    {{- else if eq .Values.fluentBit.output.type "azure" }}
+    [OUTPUT]
+        Name          azure_logs_ingestion
+        Match         *
+        tenant_id     {{ .Values.fluentBit.output.config.azure.tenantId }}
+        client_id     {{ .Values.fluentBit.output.config.azure.clientId }}
+        client_secret ${AZURE_CLIENT_SECRET}
+        dce_url       {{ .Values.fluentBit.output.config.azure.dceUrl }}
+        dcr_id        {{ .Values.fluentBit.output.config.azure.dcrId }}
+        table_name    {{ .Values.fluentBit.output.config.azure.streamName }}
+        time_generated On
+        retry_limit   3
     {{- else }}
     # Default output: stdout (useful for debugging and log aggregation)
     [OUTPUT]
