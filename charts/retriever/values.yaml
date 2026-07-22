@@ -474,7 +474,8 @@ fluentBit:
         clientSecret: ""  # Provide via --set-string fluentBit.output.config.azure.clientSecret=<secret>
         dceUrl: ""        # https://<dce>.<region>.ingest.monitor.azure.com
         dcrId: ""         # immutable Data Collection Rule id
-        streamName: ""    # DCR stream / table name (e.g. Custom-Tenx_CL)
+        streamName: ""    # BARE table name, e.g. Tenx_CL. The plugin sends to the DCR
+                          # stream Custom-<streamName>, so do NOT prefix with Custom-.
 
   # Advanced: Provide raw fluent-bit configuration
   # This overrides the output configuration above
