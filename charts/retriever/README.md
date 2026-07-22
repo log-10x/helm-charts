@@ -9,7 +9,7 @@ This chart deploys one or more **cluster deployments** with specific roles for p
 - **Query**: Process query requests and generate sub-queries
 - **Stream**: Execute stream tasks from SQS and forward results to configured destinations
 
-Stream workers automatically include a **fluent-bit sidecar** for log forwarding to destinations like S3, CloudWatch, Elasticsearch, Splunk, or Datadog.
+Stream workers automatically include a **fluent-bit sidecar** for log forwarding to destinations like S3, CloudWatch, Elasticsearch, Splunk, Datadog, or Azure Monitor.
 
 ## Prerequisites
 
@@ -93,7 +93,7 @@ clusters:
 # Fluent-bit configuration for stream workers
 fluentBit:
   output:
-    type: s3  # Options: stdout, s3, cloudwatch, elasticsearch, splunk, datadog
+    type: s3  # Options: stdout, s3, cloudwatch, elasticsearch, splunk, datadog, azure
     config:
       s3:
         bucket: my-logs-bucket
@@ -141,17 +141,20 @@ Stream workers automatically deploy a fluent-bit sidecar for log forwarding.
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `fluentBit.output.type` | Output destination: `stdout`, `s3`, `cloudwatch`, `elasticsearch`, `splunk`, `datadog` | `stdout` |
+| `fluentBit.output.type` | Output destination: `stdout`, `s3`, `cloudwatch`, `elasticsearch`, `splunk`, `datadog`, `azure` | `stdout` |
 | `fluentBit.output.config.s3.bucket` | S3 bucket name (for S3 output) | `""` |
 | `fluentBit.output.config.cloudwatch.logGroupName` | CloudWatch log group (for CloudWatch output) | `""` |
 | `fluentBit.output.config.elasticsearch.host` | Elasticsearch host (for ES output) | `""` |
 | `fluentBit.output.config.splunk.host` | Splunk HEC endpoint (for Splunk output) | `""` |
 | `fluentBit.output.config.datadog.apiKey` | Datadog API key (for Datadog output) | `""` |
+| `fluentBit.output.config.azure.streamName` | Azure Monitor: BARE table name, e.g. `Tenx_CL` (the `azure_logs_ingestion` plugin derives the `Custom-<table>` DCR stream) | `""` |
+| `fluentBit.output.config.azure.dceUrl` / `.dcrId` | Azure Monitor Data Collection Endpoint URL / immutable DCR id | `""` |
+| `fluentBit.output.config.azure.tenantId` / `.clientId` / `.clientSecret` | Entra app credentials (clientSecret via secret → `AZURE_CLIENT_SECRET`) | `""` |
 | `fluentBit.bufferStorageSize` | Max buffer disk space | `1Gi` |
 
 **Authentication:**
 - **S3/CloudWatch**: Uses IRSA (configure via `serviceAccount.annotations`)
-- **Elasticsearch/Splunk/Datadog**: Uses Kubernetes secrets (provide credentials via `--set-string`)
+- **Elasticsearch/Splunk/Datadog/Azure**: Uses Kubernetes secrets (provide credentials via `--set-string`; Azure uses `config.azure.clientSecret`)
 
 Example with CloudWatch:
 
