@@ -1,6 +1,6 @@
 # 🔟❎ Helm Charts
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Release Status](https://github.com/log-10x/helm-charts/actions/workflows/release.yaml/badge.svg?branch=main)](https://github.com/log-10x/helm-charts/actions)
 
 Helm charts for deploying Log10x pipelines
@@ -34,7 +34,7 @@ You can then run `helm search repo Log10x` to see the charts.
 
 ## License
 
-This repository is licensed under the [Apache License 2.0](LICENSE).
+This repository is licensed under the [MIT License](LICENSE).
 
 ### Important: Log10x Product License Required
 
@@ -43,7 +43,7 @@ itself is open source, **using Log10x requires a commercial license**.
 
 | Component | License |
 |-----------|---------|
-| This repository (Helm charts) | Apache 2.0 (open source) |
+| This repository (Helm charts) | MIT (open source) |
 | Log10x engine and runtime | Commercial license required |
 
 **What this means:**
