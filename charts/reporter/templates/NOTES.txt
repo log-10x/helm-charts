@@ -21,10 +21,11 @@ For production, prefer pre-creating a Secret out of band and referencing it:
     create: false
     existingSecret: <your-secret-name>
     secretKey: license-jwt
-{{- else if and .Values.licenseSecret.create (not .Values.log10xLicenseJwt) }}
-
-WARNING: No license configured. Set log10xLicenseJwt to enable the engine — download a JWT from https://console.log10x.com.
 {{- end }}
+
+The engine container has no liveness probe. The engine exposes no health
+surface to probe, so the chart does not ship one that cannot fail. If the
+engine exits, the container exits with it and the kubelet restarts the pod.
 
 To check the status:
   kubectl get daemonset {{ include "log10x-reporter.fullname" . }} -n {{ .Release.Namespace }}

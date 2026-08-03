@@ -95,12 +95,31 @@ tenx:
     runAsUser: 10001
     runAsGroup: 10001
 
-  livenessProbe:
-    exec:
-      command: ["sh", "-c", "kill -0 1"]
-    initialDelaySeconds: 30
-    periodSeconds: 10
-    failureThreshold: 3
+  # No liveness probe is set for the engine container, on purpose.
+  #
+  # The engine runs as PID 1 in this container and exposes no health surface:
+  # no HTTP endpoint, no heartbeat file, no progress file. The only socket it
+  # opens is the Forward input socket that Fluent Bit writes to.
+  #
+  # Earlier versions of this chart shipped `exec: ["sh","-c","kill -0 1"]`.
+  # That check is a tautology. PID 1 IS the engine, so the probe asks the
+  # kernel whether the process running the probe's own parent exists. It
+  # cannot return failure: if the engine is gone, the container is already
+  # gone with it, and 210 seconds of SIGSTOP on the engine produced 0
+  # restarts, ready=true, and zero probe events on a live cluster.
+  #
+  # A probe that can never fail is worse than no probe, because it reads as
+  # coverage. An honest chart has no engine liveness probe until the engine
+  # grows a health surface to probe. Engine exit is still handled: the
+  # container dies with it and the kubelet restarts the pod.
+  #
+  # If you have your own out-of-band signal, set it here and it renders:
+  # livenessProbe:
+  #   exec:
+  #     command: ["sh", "-c", "your-real-check"]
+  #   initialDelaySeconds: 30
+  #   periodSeconds: 10
+  #   failureThreshold: 3
 
 # Git config fetcher init container image
 # Used to clone config/symbols repositories when git integration is enabled
@@ -115,12 +134,20 @@ imagePullSecrets: []
 
 ###### Log10x settings ######
 
-# Log10x license JWT — required for the engine to start. Download from
-# https://console.log10x.com. The chart creates a Kubernetes Secret from
-# this value and mounts it as a file in the engine container, with
-# TENX_LICENSE_FILE pointing at it.
-# SECURITY WARNING: Do not commit actual license JWTs to version control.
-# Provide via: --set log10xLicenseJwt="$(cat license.jwt)" or a separate values file.
+# Log10x license JWT. REQUIRED: the chart refuses to render without a license,
+# because the engine exits non-zero at startup without one and the install would
+# crash-loop. Download a JWT from https://console.log10x.com.
+#
+# The chart creates a Kubernetes Secret from this value and mounts it as a file
+# in the engine container, with TENX_LICENSE_FILE pointing at it.
+#
+# SECURITY WARNING: Do not commit actual license JWTs to version control, and
+# prefer --set-file over --set so the JWT never lands in your shell history:
+#
+#   helm install my-reporter log10x/reporter-10x --set-file log10xLicenseJwt=./license.jwt
+#
+# For production, pre-create the Secret out of band and set licenseSecret.create
+# to false so the raw JWT never enters the Helm release values at all.
 log10xLicenseJwt: ""
 
 # Specify name for the 10x runtime
@@ -138,10 +165,11 @@ airgapped: false
 
 # License Secret configuration
 licenseSecret:
-  # If true, create a new Secret from the log10xLicenseJwt value above.
-  # If false, use an existing Secret specified by existingSecret.
+  # If true, create a new Secret from the log10xLicenseJwt value above, which
+  # is then required. If false, existingSecret must name a Secret you created
+  # yourself. The chart refuses to render an empty license either way.
   create: true
-  # Name of an existing Kubernetes Secret to use (only used when create=false).
+  # Name of an existing Kubernetes Secret to use. Required when create=false.
   existingSecret: ""
   # The key name within the Secret that contains the license JWT.
   secretKey: "license-jwt"
