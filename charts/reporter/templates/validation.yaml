@@ -1,0 +1,19 @@
+{{- /*
+    License validation.
+
+    The 10x engine exits non-zero at startup without a valid license, so an
+    install that reaches the cluster without one is a guaranteed crash-loop.
+    Fail at render time with a message that names the real cause instead.
+*/ -}}
+{{- if .Values.licenseSecret.create }}
+  {{- if not .Values.log10xLicenseJwt }}
+    {{- fail "\n\nreporter-10x: a Log10x license is required.\n\nThe 10x engine will not start without one, so the chart refuses to install\nan engine that is certain to crash-loop.\n\nEither pass the JWT and let the chart create the Secret:\n\n    --set-file log10xLicenseJwt=./license.jwt\n\nor point the chart at a Secret you created out of band:\n\n    --set licenseSecret.create=false \\\n    --set licenseSecret.existingSecret=<secret-name> \\\n    --set licenseSecret.secretKey=license-jwt\n\nDownload a license from https://console.log10x.com.\n" }}
+  {{- end }}
+{{- else }}
+  {{- if not .Values.licenseSecret.existingSecret }}
+    {{- fail "\n\nreporter-10x: licenseSecret.create is false, so licenseSecret.existingSecret must name\nan existing Secret holding the license JWT. Leaving it empty renders a pod with an\nunnamed Secret volume, which the API server rejects.\n\n    --set licenseSecret.existingSecret=<secret-name> \\\n    --set licenseSecret.secretKey=license-jwt\n" }}
+  {{- end }}
+{{- end }}
+{{- if not .Values.licenseSecret.secretKey }}
+  {{- fail "reporter-10x: licenseSecret.secretKey must name the key inside the license Secret (default: license-jwt)." }}
+{{- end }}

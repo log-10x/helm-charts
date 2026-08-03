@@ -71,7 +71,13 @@ licenseSecret:
   secretKey: "log10x-license"
 ```
 
-**Security validation:** The chart will fail to deploy if `log10xLicenseJwt` is empty when `licenseSecret.create` is true.
+**Validation:** The license is required. `helm install` fails at render time, before anything reaches the cluster, if `log10xLicenseJwt` is empty while `licenseSecret.create` is true, or if `licenseSecret.existingSecret` is empty while `create` is false. The 10x engine exits non-zero at startup without a valid license, so an install missing one is a guaranteed crash-loop; the chart refuses it up front rather than letting the pod fail with an error that names the wrong cause.
+
+Prefer `--set-file` over `--set` so the JWT stays out of your shell history:
+
+```bash
+helm install my-reporter log10x/reporter-10x --set-file log10xLicenseJwt=./license.jwt
+```
 
 #### Git access token
 
@@ -227,6 +233,14 @@ tenx:
     - name: TENX_DEBUG
       value: "true"
 ```
+
+### Health probes
+
+Fluent Bit is probed over its HTTP metrics endpoint (`livenessProbe` / `readinessProbe` at the root of `values.yaml`).
+
+The 10x engine container has **no liveness probe**, on purpose. The engine runs as PID 1 and exposes no health surface: no HTTP endpoint, no heartbeat file, no progress file. The only socket it opens is the Forward input socket. Earlier chart versions shipped `exec: ["sh","-c","kill -0 1"]`, which asks the kernel whether the probe's own parent process exists and therefore can never fail; 210 seconds of `SIGSTOP` on the engine produced 0 restarts, `ready=true`, and zero probe events. A probe that cannot fail is worse than no probe, because it reads as coverage. Engine exit is still handled without one: the container exits with the engine and the kubelet restarts the pod.
+
+Set `tenx.livenessProbe` yourself if you have an out-of-band signal worth probing.
 
 ## Under the hood
 
