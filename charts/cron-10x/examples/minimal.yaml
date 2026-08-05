@@ -1,0 +1,13 @@
+# Smallest install that compiles. The compiler scans whatever the image's own
+# config tree points at and links the result. Pass the licence with --set-file:
+#
+#   helm install my-compiler log10x/cron-10x \
+#     -f minimal.yaml --set-file tenx.licenseJwt=./license.jwt
+
+jobs:
+  - name: compiler-job
+    runtimeName: my-compiler
+    schedule: "*/30 * * * *"
+    args:
+      - "@apps/compiler"
+    activeDeadlineSeconds: 3600

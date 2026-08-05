@@ -1,0 +1,18 @@
+# Values for chart-testing. Overridden by the workflow with a real licence via
+# --set-file when the TENX_LICENSE_JWT secret is readable, so 'ct install' can
+# fail on an engine that will not start.
+tenx:
+  licenseJwt: "ci-placeholder-not-a-valid-jwt"
+
+jobs:
+  - name: ci
+    runtimeName: ci-compiler
+    schedule: "*/5 * * * *"
+    args:
+      - "@apps/compiler"
+    activeDeadlineSeconds: 600
+    backoffLimit: 0
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi

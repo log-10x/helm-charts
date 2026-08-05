@@ -19,6 +19,12 @@ The [Log10x Retriever](https://github.com/log-10x/helm-charts/tree/main/charts/r
 
 For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/quarkus
 
+## Log10x Cron
+
+The [Log10x Cron](https://github.com/log-10x/helm-charts/tree/main/charts/cron-10x) chart schedules the 10x Compiler as a CronJob: it pulls sources, scans them for log statements, links the result into a symbol library and pushes it back to a config repository.
+
+For more details on the deployed images, see - https://github.com/log-10x/docker-images/tree/main/cloud
+
 ## Usage
 
 [Helm](https://helm.sh) must be installed to use the charts.

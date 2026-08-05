@@ -1,0 +1,229 @@
+{{- $delivery := include "log10x-cron.licenseDelivery" . -}}
+{{- $licenseSecretName := include "log10x-cron.licenseSecretName" . -}}
+{{- $licenseKey := .Values.tenx.licenseSecretKey | default "license-jwt" -}}
+{{- range .Values.jobs }}
+{{- $hasConfigFiles := and .configFiles (ne (len .configFiles) 0) -}}
+{{- $gitInit := or (and .config .config.git .config.git.enabled) (and .symbols .symbols.git .symbols.git.enabled) -}}
+{{- $volumeInit := or (and .config .config.volume .config.volume.enabled) (and .symbols .symbols.volume .symbols.volume.enabled) -}}
+{{- $needsVolumes := or (eq $delivery "file") $gitInit $volumeInit $hasConfigFiles .volumes -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "log10x-cron.labels" $ | nindent 4 }}
+    log10x-cron-name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+spec:
+  schedule: {{ .schedule | quote }}
+  {{- with .timeZone }}
+  timeZone: {{ . | quote }}
+  {{- end }}
+  {{- if hasKey . "suspend" }}
+  suspend: {{ .suspend }}
+  {{- end }}
+  concurrencyPolicy: {{ .concurrencyPolicy | default "Forbid" }}
+  {{- with .startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ . }}
+  {{- end }}
+  failedJobsHistoryLimit: {{ .failedJobsHistoryLimit | default 3 }}
+  successfulJobsHistoryLimit: {{ .successfulJobsHistoryLimit | default 3 }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "log10x-cron.labels" $ | nindent 8 }}
+    spec:
+      {{- if hasKey . "backoffLimit" }}
+      backoffLimit: {{ .backoffLimit }}
+      {{- end }}
+      {{- with .activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ . }}
+      {{- end }}
+      template:
+        metadata:
+          {{- with $.Values.podAnnotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          labels:
+            {{- include "log10x-cron.selectorLabels" $ | nindent 12 }}
+            log10x-cron-name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+        spec:
+          restartPolicy: {{ .restartPolicy | default "Never" }}
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "log10x-cron.serviceAccountName" $ }}
+          {{- with (.podSecurityContext | default $.Values.podSecurityContext) }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or $gitInit .initContainers }}
+          initContainers:
+          {{- with .initContainers }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $gitInit }}
+            - name: tenx-git-config
+              image: "{{ $.Values.configFetcherImage.repository }}:{{ $.Values.configFetcherImage.tag }}"
+              imagePullPolicy: {{ $.Values.configFetcherImage.pullPolicy }}
+              env:
+                - name: GIT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "log10x-cron.fullname" $ }}-git-token
+                      key: token
+              args:
+                {{- if and .config .config.git .config.git.enabled }}
+                - "--config-repo"
+                - {{ .config.git.url | quote }}
+                {{- if .config.git.branch }}
+                - "--config-branch"
+                - {{ .config.git.branch | quote }}
+                {{- end }}
+                {{- end }}
+                {{- if and .symbols .symbols.git .symbols.git.enabled }}
+                - "--symbols-repo"
+                - {{ .symbols.git.url | quote }}
+                {{- if .symbols.git.branch }}
+                - "--symbols-branch"
+                - {{ .symbols.git.branch | quote }}
+                {{- end }}
+                {{- if .symbols.git.path }}
+                - "--symbols-path"
+                - {{ .symbols.git.path | quote }}
+                {{- end }}
+                {{- end }}
+              volumeMounts:
+                - name: tenx-git
+                  mountPath: /data
+          {{- end }}
+          {{- end }}
+          containers:
+            - name: {{ .name }}
+              image: {{ include "log10x-cron.image" $ | quote }}
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              env:
+                {{- if eq $delivery "file" }}
+                - name: TENX_LICENSE_FILE
+                  value: {{ include "log10x-cron.licenseFilePath" $ | quote }}
+                {{- else }}
+                - name: TENX_LICENSE_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $licenseSecretName }}
+                      key: {{ $licenseKey }}
+                {{- end }}
+                {{- if $.Values.tenx.airgapped }}
+                - name: TENX_AIRGAPPED
+                  value: "true"
+                {{- end }}
+                {{- if .runtimeName }}
+                - name: TENX_RUNTIME_NAME
+                  value: {{ .runtimeName | quote }}
+                {{- end }}
+                {{- if and .config .config.git .config.git.enabled }}
+                - name: TENX_CONFIG
+                  value: "/etc/tenx/git/config"
+                {{- else if and .config .config.volume .config.volume.enabled }}
+                - name: TENX_CONFIG
+                  value: "/etc/tenx/config"
+                {{- end }}
+                {{- if and .symbols .symbols.git .symbols.git.enabled }}
+                - name: TENX_SYMBOLS_PATH
+                  value: "/etc/tenx/git/config/data/shared/symbols"
+                {{- else if and .symbols .symbols.volume .symbols.volume.enabled }}
+                - name: TENX_SYMBOLS_PATH
+                  value: "/etc/tenx/symbols"
+                {{- end }}
+                {{- with .extraEnv }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+              args:
+                {{- with .args }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+                {{- range .configFiles }}
+                - "@/etc/tenx/config/{{ .name }}"
+                {{- end }}
+              {{- with .resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              {{- with (.containerSecurityContext | default $.Values.containerSecurityContext) }}
+              securityContext:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                {{- if eq $delivery "file" }}
+                - name: tenx-license
+                  mountPath: /etc/tenx/license
+                  readOnly: true
+                {{- end }}
+                {{- if $gitInit }}
+                - name: tenx-git
+                  mountPath: /etc/tenx/git
+                {{- end }}
+                {{- if and .config .config.volume .config.volume.enabled }}
+                - name: tenx-config-volume
+                  mountPath: /etc/tenx/config
+                {{- end }}
+                {{- if and .symbols .symbols.volume .symbols.volume.enabled }}
+                - name: tenx-symbols-volume
+                  mountPath: /etc/tenx/symbols
+                {{- end }}
+                {{- range .configFiles }}
+                - name: config-volume
+                  mountPath: /etc/tenx/config/{{ .name }}
+                  subPath: {{ .name }}
+                {{- end }}
+                {{- with .volumeMounts }}
+                {{- toYaml . | nindent 16 }}
+                {{- end }}
+          {{- if $needsVolumes }}
+          volumes:
+            {{- if eq $delivery "file" }}
+            - name: tenx-license
+              secret:
+                secretName: {{ $licenseSecretName }}
+                items:
+                  - key: {{ $licenseKey }}
+                    path: {{ $licenseKey }}
+            {{- end }}
+            {{- if $gitInit }}
+            - name: tenx-git
+              emptyDir: {}
+            {{- end }}
+            {{- if and .config .config.volume .config.volume.enabled }}
+            - name: tenx-config-volume
+              persistentVolumeClaim:
+                claimName: {{ .config.volume.claimName }}
+            {{- end }}
+            {{- if and .symbols .symbols.volume .symbols.volume.enabled }}
+            - name: tenx-symbols-volume
+              persistentVolumeClaim:
+                claimName: {{ .symbols.volume.claimName }}
+            {{- end }}
+            {{- if $hasConfigFiles }}
+            - name: config-volume
+              configMap:
+                name: {{ include "log10x-cron.fullname" $ }}-{{ .name }}-config
+            {{- end }}
+            {{- with .volumes }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+---
+{{- end }}

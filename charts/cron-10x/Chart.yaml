@@ -1,0 +1,31 @@
+apiVersion: v2
+name: cron-10x
+description: Official Log10x helm chart for running the 10x Compiler as a scheduled CronJob
+type: application
+version: 1.1.0
+appVersion: 1.1.45
+home: https://github.com/log-10x/helm-charts
+sources:
+  - https://github.com/log-10x/helm-charts
+  - https://github.com/log-10x/docker-images
+maintainers:
+  - name: log10x
+    email: engineering@log10x.com
+annotations:
+  artifacthub.io/changes: |
+    - kind: fixed
+      description: "The chart renders log10x/compiler-10x, the image the scheduled compile needs. Every previous version rendered log10x/pipeline-10x, which carries no git, no docker CLI and no helm, so the pull stage of @apps/compiler had nothing to shell out to. Verified on compiler-10x:1.1.45: git 2.43.7, helm v3.16.4 and a docker CLI that is a symlink to podman 4.9.4 are all on PATH."
+    - kind: fixed
+      description: "The chart licences the engine. tenx.licenseJwt or tenx.licenseSecret feed TENX_LICENSE_FILE (default) or TENX_LICENSE_KEY. Previous versions set only TENX_API_KEY, a variable nothing reads: it appears nowhere in the compiler image's config tree, where the bootstrap resolves licenseKey from TENX_LICENSE_KEY and licenseFile from TENX_LICENSE_FILE."
+    - kind: fixed
+      description: "nodeSelector, tolerations and affinity are pod fields again. They used to render inside the container, and the API server rejects that outright: 'strict decoding error: unknown field spec.jobTemplate.spec.template.spec.containers[0].nodeSelector'. Any values file that set one could not be installed at all."
+    - kind: added
+      description: "Render-time validation. An install with no licence fails with a message naming the cause instead of scheduling a CronJob whose every run exits 1."
+    - kind: changed
+      description: "concurrencyPolicy defaults to Forbid. Two compiles writing the same symbol library concurrently is not a state worth defaulting to."
+    - kind: added
+      description: "startingDeadlineSeconds, backoffLimit, suspend and timeZone are settable per job."
+    - kind: added
+      description: "tenx.airgapped sets TENX_AIRGAPPED, which keeps the compile off the vendor gateway. Note that 'demo' and 'limited' licence types fall back to online mode."
+    - kind: deprecated
+      description: "log10xApiKey, apiKeySecret.* and log10xLicense. When no tenx.license* value is set the chart reads them as the licence JWT, so existing installs start working rather than silently continuing to do nothing."
