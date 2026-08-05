@@ -40,6 +40,27 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         uses: helm/kind-action@v1.14.0
 
+      # cron-10x installs a CronJob, which is "ready" the moment it exists. Its
+      # helm test runs one compile with the release's own image and licence, so
+      # a broken image or a broken licence fails here instead of failing on a
+      # customer's schedule. That needs a real licence: without one the test pod
+      # exits on "license verification failed" and the whole run is noise.
+      #
+      # Repository secrets are not exposed to pull_request runs from forks, so
+      # those fall through to the second branch: charts still install, the
+      # compile is not exercised, and the job summary says so.
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
-        run: ct install --target-branch ${{ github.event.repository.default_branch }}
+        env:
+          TENX_LICENSE_JWT: ${{ secrets.TENX_LICENSE_JWT }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${TENX_LICENSE_JWT:-}" ]]; then
+            printf '%s' "$TENX_LICENSE_JWT" > "${RUNNER_TEMP}/tenx-license.jwt"
+            ct install --target-branch ${{ github.event.repository.default_branch }} \
+              --helm-extra-set-args "--set-file tenx.licenseJwt=${RUNNER_TEMP}/tenx-license.jwt"
+          else
+            echo "::warning title=10x compile untested::TENX_LICENSE_JWT is not available to this run, so cron-10x installed with tests.enabled=false. The CronJob object was created; no compile was executed, and no engine or licence regression can be caught here. Fork pull requests always land in this branch."
+            ct install --target-branch ${{ github.event.repository.default_branch }} \
+              --helm-extra-set-args "--set tests.enabled=false"
+          fi

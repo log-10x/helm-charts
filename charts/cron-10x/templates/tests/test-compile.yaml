@@ -1,0 +1,81 @@
+{{- /*
+    A CronJob is invisible to CI. 'ct install' waits for the release to be
+    ready, and a CronJob is ready the instant it exists, so an install can pass
+    green while every scheduled run would exit 1. That is exactly how a chart
+    ends up shipping the wrong image for six versions.
+
+    This test runs one compile now, with the same image, licence and arguments
+    the schedule would use, and fails the install if it does not complete.
+*/ -}}
+{{- if .Values.tests.enabled }}
+{{- $delivery := include "log10x-cron.licenseDelivery" . -}}
+{{- $licenseSecretName := include "log10x-cron.licenseSecretName" . -}}
+{{- $licenseKey := .Values.tenx.licenseSecretKey | default "license-jwt" -}}
+{{- $job := first .Values.jobs -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "log10x-cron.fullname" . }}-test-compile
+  labels:
+    {{- include "log10x-cron.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  restartPolicy: Never
+  serviceAccountName: {{ include "log10x-cron.serviceAccountName" . }}
+  {{- with .Values.imagePullSecrets }}
+  imagePullSecrets:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.podSecurityContext }}
+  securityContext:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: compile
+      image: {{ include "log10x-cron.image" . | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      env:
+        {{- if eq $delivery "file" }}
+        - name: TENX_LICENSE_FILE
+          value: {{ include "log10x-cron.licenseFilePath" . | quote }}
+        {{- else }}
+        - name: TENX_LICENSE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $licenseSecretName }}
+              key: {{ $licenseKey }}
+        {{- end }}
+        {{- if .Values.tenx.airgapped }}
+        - name: TENX_AIRGAPPED
+          value: "true"
+        {{- end }}
+        - name: TENX_RUNTIME_NAME
+          value: {{ printf "%s-test" (include "log10x-cron.fullname" .) | quote }}
+      {{- /* The image's own config tree, not the release's git or PVC config:
+             the point of the test is the engine and the licence, and a cloned
+             repository would make it a network test as well. */}}
+      args:
+        {{- toYaml $job.args | nindent 8 }}
+      {{- with .Values.containerSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if eq $delivery "file" }}
+      volumeMounts:
+        - name: tenx-license
+          mountPath: /etc/tenx/license
+          readOnly: true
+      {{- end }}
+  {{- if eq $delivery "file" }}
+  volumes:
+    - name: tenx-license
+      secret:
+        secretName: {{ $licenseSecretName }}
+        items:
+          - key: {{ $licenseKey }}
+            path: {{ $licenseKey }}
+  {{- end }}
+{{- end }}

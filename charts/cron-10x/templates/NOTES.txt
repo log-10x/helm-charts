@@ -1,0 +1,28 @@
+{{ .Chart.Name }} {{ .Chart.Version }} installed, running {{ include "log10x-cron.image" . }}.
+
+Scheduled compiles:
+{{- range .Values.jobs }}
+
+  {{ include "log10x-cron.fullname" $ }}-{{ .name }}
+    schedule    {{ .schedule }}{{ with .timeZone }} ({{ . }}){{ end }}
+    args        {{ .args | join " " }}
+    concurrency {{ .concurrencyPolicy | default "Forbid" }}
+{{- end }}
+
+Nothing runs until the first schedule fires. To see a run now:
+
+  kubectl create job --from=cronjob/{{ include "log10x-cron.fullname" . }}-{{ (first .Values.jobs).name }} compile-now -n {{ .Release.Namespace }}
+  kubectl logs -n {{ .Release.Namespace }} -l job-name=compile-now --tail=100
+
+To watch the schedule instead:
+
+  kubectl get cronjob -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+  kubectl get jobs -n {{ .Release.Namespace }} --sort-by=.metadata.creationTimestamp
+
+A successful run ends with a JSON report naming the Scan and Link phases and
+"success": true. The linked symbol library lands in the outputSymbolLibraryFile
+path from your compiler config. See https://doc.log10x.com/compile/deploy/
+{{ if not (include "log10x-cron.licenseJwt" .) }}
+The license comes from the existing Secret {{ .Values.tenx.licenseSecret }}. If a run exits
+immediately, check that the Secret holds key "{{ .Values.tenx.licenseSecretKey }}".
+{{- end }}

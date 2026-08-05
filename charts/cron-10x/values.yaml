@@ -1,0 +1,315 @@
+# Default values for cron-10x.
+#
+# The chart schedules the 10x Compiler: a CronJob that pulls sources, scans them
+# for log statements, links the result into a symbol library and pushes it back
+# to a config repository. See https://doc.log10x.com/compile/
+
+# Allows overriding base names
+#
+nameOverride: ""
+fullnameOverride: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Image
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# log10x/compiler-10x, not log10x/pipeline-10x. The compiler's pull stage shells
+# out to git, to the docker CLI and to helm to fetch source repositories, images
+# and charts. compiler-10x carries all three:
+#
+#   git      /usr/bin/git          2.43.7
+#   docker   /usr/local/bin/docker symlink to /usr/bin/podman 4.9.4, so image
+#                                  pulls work rootless inside the pod with no
+#                                  host docker socket mounted
+#   helm     /usr/local/bin/helm   v3.16.4
+#
+# pipeline-10x carries none of them, which is why a compile scheduled on it
+# could only ever scan what was already on disk.
+#
+image:
+  repository: log10x/compiler-10x
+  pullPolicy: IfNotPresent
+  # Overrides the image tag, whose default is the chart appVersion.
+  tag: ""
+
+# Git config fetcher init container image.
+# Clones config and symbol repositories when git integration is enabled.
+#
+configFetcherImage:
+  repository: log10x/git-config-fetcher
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+# When replacing the image with your own, allows setting secrets for pull access.
+#
+imagePullSecrets: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10x engine
+# ─────────────────────────────────────────────────────────────────────────────
+tenx:
+
+  # ===========================================================================
+  # LICENCE. REQUIRED. Without one the compile does not start.
+  # ===========================================================================
+  #
+  # The licence is checked while the pipeline is being built, before any source
+  # file is read. With no licence the process exits non-zero on every scheduled
+  # run, so the chart fails the render instead of installing a CronJob that is
+  # certain to fail on its own schedule.
+  #
+  # The signed JWT, downloaded from https://console.log10x.com
+  #
+  # Prefer --set-file over --set so the token never lands in shell history:
+  #
+  #   helm install my-compiler log10x/cron-10x \
+  #     --set-file tenx.licenseJwt=./license.jwt
+  #
+  licenseJwt: ""
+
+  # Name of an existing Secret holding the token. Takes precedence over
+  # licenseJwt, so a GitOps repo never has to carry the token.
+  #
+  licenseSecret: ""
+
+  # Key inside the Secret, whether chart-created or pre-existing.
+  #
+  licenseSecretKey: "license-jwt"
+
+  # How the token reaches the engine.
+  #
+  #   file  the Secret is projected to /etc/tenx/license/<licenseSecretKey> and
+  #         TENX_LICENSE_FILE points at it. Preferred: the token never enters
+  #         the process environment, and rotating the Secret rotates the file.
+  #   env   the Secret is injected as TENX_LICENSE_KEY via secretKeyRef.
+  #
+  # Both are read by pipelines/compile/bootstrap/config.yaml, which resolves
+  # licenseFile ahead of licenseKey when both are set.
+  #
+  licenseDelivery: "file"
+
+  # Suppress every outbound call to the Log10x SaaS gateway. The licence JWT is
+  # verified locally against the embedded public key: no startup validation, no
+  # metrics reporting, no user-attribute enrichment. Source pulls and symbol
+  # pushes are unaffected, those are your pipelines and not vendor telemetry.
+  #
+  # 'demo' and 'limited' licence types cannot run airgapped. The engine warns
+  # and falls back to online.
+  #
+  airgapped: false
+
+# Git access token for private repositories (config and/or symbols).
+# Used by the git-config-fetcher init container. Leave empty for public repos.
+#
+gitToken: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Deprecated licence inputs
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# log10xApiKey and apiKeySecret were wired to TENX_API_KEY, an environment
+# variable NOTHING reads. It does not appear in the compiler image's config
+# tree; the bootstrap resolves the licence from TENX_LICENSE_KEY and
+# TENX_LICENSE_FILE only. log10xLicense was never read by the chart at all.
+#
+# They are not a second credential. The product's "API key" is a console and MCP
+# credential for the SaaS side; the compiler never presents one. The engine
+# accepts exactly one secret, the licence JWT.
+#
+# If either is set while tenx.licenseJwt and tenx.licenseSecret are both empty,
+# its value is used as the licence so existing installs start working.
+#
+log10xApiKey: ""
+log10xLicense: ""
+
+apiKeySecret:
+  # Deprecated. Use tenx.licenseSecret.
+  create: true
+  existingSecret: ""
+  secretKey: "api-key"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Jobs
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+    # Name of the job. Becomes part of the CronJob name.
+  - name: compiler-job
+
+    # Name of the 10x runtime process inside the pod. Optional.
+    runtimeName: my-compiler
+
+    # Run schedule.
+    schedule: "*/30 * * * *"
+
+    # IANA time zone for the schedule. Requires Kubernetes 1.27 or later.
+    # timeZone: "Europe/London"
+
+    # Arguments passed to the 10x pipeline.
+    # For more details, see https://doc.log10x.com/config/cli
+    args:
+      - "@apps/compiler"
+
+    # Pause the schedule without uninstalling.
+    # suspend: false
+
+    # What happens when a run is due while the previous one is still going.
+    #   Forbid  (default here) skip the new run
+    #   Allow   run both
+    #   Replace cancel the running one and start the new one
+    #
+    # Forbid is the default because two compiles writing the same symbol library
+    # at the same time is not a state worth defaulting to.
+    concurrencyPolicy: Forbid
+
+    # Kill a run that exceeds this many seconds. Unset means it may run forever,
+    # which with concurrencyPolicy Forbid means one stuck run blocks every
+    # following one. Set it.
+    activeDeadlineSeconds: 3600
+
+    # How many times a failed run is retried before the run is marked failed.
+    # 0 means the next scheduled tick is the retry, which is usually what you
+    # want for a compile: a failure is normally a bad credential or an
+    # unreachable source, and neither is fixed by retrying 6 seconds later.
+    backoffLimit: 0
+
+    # How long after a missed schedule Kubernetes may still start the run.
+    # startingDeadlineSeconds: 300
+
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+
+    # restartPolicy for the pod. Must be Never or OnFailure.
+    restartPolicy: Never
+
+    # Configuration repository, for the GitOps approach.
+    # See https://doc.log10x.com/architecture/gitops/
+    # The git token is set at the root of this file, in 'gitToken'.
+    #
+    config:
+      # Method 1: clone from a Git repository. An init container clones it
+      # before the compiler container starts. Works with GitHub, GitLab,
+      # Bitbucket or any HTTPS-accessible provider.
+      git:
+        enabled: false
+        # Full HTTPS URL, e.g. https://github.com/your-org/config.git
+        url: ""
+        # Optional branch. Defaults to the repository's default branch.
+        # branch: "main"
+
+      # Method 2: mount an existing PersistentVolumeClaim.
+      volume:
+        enabled: false
+        claimName: ""
+
+    # Symbol files. Optional.
+    symbols:
+      git:
+        enabled: false
+        url: ""
+        # branch: "main"
+        # path: "tenx/my-app/symbols"
+      volume:
+        enabled: false
+        claimName: ""
+
+    # Additional environment variables. Source credentials go here.
+    extraEnv: []
+    #   - name: GH_TOKEN
+    #     valueFrom:
+    #       secretKeyRef:
+    #         name: compiler-credentials
+    #         key: github-token
+
+    # Custom init containers to run before the compiler.
+    initContainers: []
+
+    # Extra volume mounts for the compiler container.
+    volumeMounts: []
+
+    # Extra volumes for the pod.
+    volumes: []
+
+    # On-the-fly arguments to the 10x pipeline, in YAML.
+    # See https://doc.log10x.com/config/yaml
+    configFiles: []
+      # - name: my-config.yaml
+      #   content:
+      #     my-key: my-value
+
+    resources: {}
+      # A compile is a batch job: it is CPU-bound while scanning and holds the
+      # symbol set in memory while linking, so it wants more headroom than a
+      # long-running forwarder. Left unset so the chart installs on Minikube and
+      # kind. Suggested starting point for a real source tree:
+      # limits:
+      #   cpu: 2000m
+      #   memory: 4Gi
+      # requests:
+      #   cpu: 500m
+      #   memory: 2Gi
+
+    # Per-job security context overrides. Both fall back to the chart-level
+    # podSecurityContext and containerSecurityContext below, so replacing this
+    # 'jobs' list does not silently drop them.
+    # podSecurityContext: {}
+    # containerSecurityContext: {}
+
+    # Pod placement. These are pod fields. Earlier chart versions rendered them
+    # inside the container, which the API server rejects outright, so no values
+    # file that set one could be installed.
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+
+podAnnotations: {}
+
+# Applied to every job that does not set its own. Kept at the chart root because
+# a user who replaces the whole 'jobs' list should not lose them by omission.
+#
+# runAsUser is set explicitly, and has to be. The compiler-10x image declares its
+# user by NAME (USER tenxuser), and runAsNonRoot on its own then leaves the
+# kubelet nothing to check against, so it refuses to start the container:
+#
+#   Error: container has runAsNonRoot and image has non-numeric user
+#   (tenxuser), cannot verify user is non-root
+#
+# 1000 is that same tenxuser: 'id' inside compiler-10x:1.1.45 returns
+# uid=1000(tenxuser) gid=1000(tenxuser).
+#
+# fsGroup makes the projected licence readable to the compile without granting
+# world read on the Secret volume.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# readOnlyRootFilesystem is deliberately absent. The compiler writes its linked
+# symbol library under the config tree and scratch files under /tmp, both of
+# which sit on the image's root filesystem unless the config comes from a volume.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Service account
+# ─────────────────────────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  annotations: {}
+  # Generated from the fullname template when empty.
+  name: ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# helm test
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# 'helm test' runs one compile immediately, with this release's image, licence
+# and args, and fails if it does not complete. A CronJob is otherwise invisible
+# to CI: an install is "ready" the moment the object exists, whether or not any
+# run it schedules could ever succeed.
+#
+tests:
+  enabled: true

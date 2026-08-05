@@ -1,0 +1,23 @@
+# No path to the Log10x SaaS. The licence is verified locally against the
+# embedded public key; nothing is sent to the vendor gateway. Source pulls and
+# symbol pushes still happen, those are your own pipelines.
+#
+# 'demo' and 'limited' licence types cannot run airgapped: the engine warns and
+# falls back to online mode.
+
+tenx:
+  airgapped: true
+  # The token is managed outside Helm, so it never enters the release values.
+  licenseSecret: "tenx-license"
+  licenseSecretKey: "license-jwt"
+
+jobs:
+  - name: compiler-job
+    schedule: "0 * * * *"
+    args:
+      - "@apps/compiler"
+    activeDeadlineSeconds: 3600
+    config:
+      volume:
+        enabled: true
+        claimName: "my-config-pvc"

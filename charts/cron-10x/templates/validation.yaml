@@ -1,0 +1,78 @@
+{{- /*
+    Render-time validation.
+
+    A CronJob is worse than a Deployment at telling you it is broken: nothing
+    happens until the schedule fires, and then a pod fails somewhere in the
+    history limit. Everything catchable is caught here instead.
+*/ -}}
+
+{{- $delivery := include "log10x-cron.licenseDelivery" . -}}
+
+{{- /* Licence. The compile exits non-zero without one. */ -}}
+{{- if not (include "log10x-cron.licenseJwt" .) }}
+  {{- if not .Values.tenx.licenseSecret }}
+    {{- fail "\n\ncron-10x: a Log10x license is required.\n\nThe 10x Compiler will not start without one, so the chart refuses to schedule a\nCronJob whose every run is certain to exit non-zero.\n\nEither pass the JWT and let the chart create the Secret:\n\n    --set-file tenx.licenseJwt=./license.jwt\n\nor point the chart at a Secret you created out of band:\n\n    --set tenx.licenseSecret=<secret-name> \\\n    --set tenx.licenseSecretKey=license-jwt\n\nDownload a license from https://console.log10x.com.\n" }}
+  {{- end }}
+{{- end }}
+
+{{- if not .Values.tenx.licenseSecretKey }}
+  {{- fail "cron-10x: tenx.licenseSecretKey must name the key inside the license Secret (default: license-jwt)." }}
+{{- end }}
+
+{{- if not .Values.jobs }}
+  {{- fail "cron-10x: 'jobs' is empty, so the chart would install a release that schedules nothing. Define at least one job." }}
+{{- end }}
+
+{{- $names := list -}}
+{{- range .Values.jobs }}
+
+  {{- if not .name }}
+    {{- fail "cron-10x: every entry in 'jobs' needs a 'name'. It becomes part of the CronJob name." }}
+  {{- end }}
+
+  {{- if has .name $names }}
+    {{- fail (printf "cron-10x: two jobs are both named %q. Job names must be unique inside a release, because they name the CronJob." .name) }}
+  {{- end }}
+  {{- $names = append $names .name -}}
+
+  {{- if not .schedule }}
+    {{- fail (printf "cron-10x: job %q has no 'schedule'. A CronJob without one cannot be created." .name) }}
+  {{- end }}
+
+  {{- if not .args }}
+    {{- fail (printf "cron-10x: job %q has no 'args'. The compiler needs a pipeline to run, normally:\n\n    args:\n      - \"@apps/compiler\"\n" .name) }}
+  {{- end }}
+
+  {{- $restart := .restartPolicy | default "Never" -}}
+  {{- if not (has $restart (list "Never" "OnFailure")) }}
+    {{- fail (printf "cron-10x: job %q sets restartPolicy %q. A Job pod accepts only \"Never\" or \"OnFailure\"; the API server rejects anything else." .name $restart) }}
+  {{- end }}
+
+  {{- $concurrency := .concurrencyPolicy | default "Forbid" -}}
+  {{- if not (has $concurrency (list "Allow" "Forbid" "Replace")) }}
+    {{- fail (printf "cron-10x: job %q sets concurrencyPolicy %q. Valid values are \"Allow\", \"Forbid\" and \"Replace\"." .name $concurrency) }}
+  {{- end }}
+
+  {{- /* A git source with no URL renders an init container that clones nothing
+         and then a compile that scans an empty tree, which looks like success. */ -}}
+  {{- if and .config .config.git .config.git.enabled (not .config.git.url) }}
+    {{- fail (printf "cron-10x: job %q sets config.git.enabled but leaves config.git.url empty. The init container would clone nothing and the compile would scan an empty tree." .name) }}
+  {{- end }}
+  {{- if and .symbols .symbols.git .symbols.git.enabled (not .symbols.git.url) }}
+    {{- fail (printf "cron-10x: job %q sets symbols.git.enabled but leaves symbols.git.url empty." .name) }}
+  {{- end }}
+  {{- if and .config .config.volume .config.volume.enabled (not .config.volume.claimName) }}
+    {{- fail (printf "cron-10x: job %q sets config.volume.enabled but leaves config.volume.claimName empty. The API server rejects a PVC volume with no claim." .name) }}
+  {{- end }}
+  {{- if and .symbols .symbols.volume .symbols.volume.enabled (not .symbols.volume.claimName) }}
+    {{- fail (printf "cron-10x: job %q sets symbols.volume.enabled but leaves symbols.volume.claimName empty." .name) }}
+  {{- end }}
+  {{- if and .config .config.git .config.git.enabled .config.volume .config.volume.enabled }}
+    {{- fail (printf "cron-10x: job %q enables both config.git and config.volume. TENX_CONFIG can point at one config tree, so pick one." .name) }}
+  {{- end }}
+
+{{- end }}
+
+{{- /* Silence the unused-variable case: $delivery is validated for its side
+       effect, and referencing it keeps that intent explicit. */ -}}
+{{- if not $delivery }}{{- fail "cron-10x: tenx.licenseDelivery did not resolve." }}{{- end }}

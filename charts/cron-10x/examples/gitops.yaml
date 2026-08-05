@@ -1,0 +1,45 @@
+# GitOps: an init container clones the config repository before each run, and
+# the compiler pushes the linked symbol library back to it.
+#
+#   helm install my-compiler log10x/cron-10x \
+#     -f gitops.yaml --set-file tenx.licenseJwt=./license.jwt
+
+gitToken: "YOUR-GIT-TOKEN"
+
+jobs:
+  - name: compiler-job
+    runtimeName: my-compiler
+    schedule: "*/30 * * * *"
+    args:
+      - "@apps/compiler"
+    activeDeadlineSeconds: 3600
+
+    config:
+      git:
+        enabled: true
+        url: "https://github.com/YOUR-ACCOUNT/config.git"
+        branch: "my-compiler-config"
+
+    # Credentials for the SOURCES the compiler pulls, which are not the same as
+    # the credential for the config repo above. Create the Secret out of band:
+    #
+    #   kubectl create secret generic compiler-credentials \
+    #     --from-literal=github-token=... \
+    #     --from-literal=docker-username=... \
+    #     --from-literal=docker-token=...
+    extraEnv:
+      - name: GH_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: compiler-credentials
+            key: github-token
+      - name: DOCKER_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: compiler-credentials
+            key: docker-username
+      - name: DOCKER_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: compiler-credentials
+            key: docker-token
