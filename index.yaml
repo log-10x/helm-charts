@@ -177,6 +177,22 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/cron-10x-0.9.0/cron-10x-0.9.0.tgz
     version: 0.9.0
+  env-config-10x:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2026-08-14T14:20:48.03837736Z"
+    description: Log10x environment descriptor ConfigMap consumed by Reporter, Receiver,
+      Retriever, and the log10x-mcp resolver
+    digest: 61492f2d98aea184ae1536d36a3e482990eee490e5b01f0328000b06c7820f9a
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: env-config-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/env-config-10x-1.0.0/env-config-10x-1.0.0.tgz
+    version: 1.0.0
   reporter-10x:
   - apiVersion: v2
     appVersion: 1.1.39
@@ -555,4 +571,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-08-05T00:54:48.890153174Z"
+generated: "2026-08-14T14:20:48.038453131Z"
