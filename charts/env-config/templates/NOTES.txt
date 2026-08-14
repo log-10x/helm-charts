@@ -1,0 +1,35 @@
+Log10x env-config has been processed.
+
+  Release: {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace | default "log10x" }}
+
+{{- if .Values.envConfig.env_id }}
+
+A ConfigMap was rendered:
+
+  Name:      log10x-env-config-{{ .Values.envConfig.env_id }}
+  Namespace: {{ .Release.Namespace | default "log10x" }}
+  Key:       env.json
+  Nickname:  {{ .Values.envConfig.nickname | default "(unset)" }}
+
+Consumers:
+  - reporter-10x (edge Reporter DaemonSet) — mounts env.json for environment identity.
+  - receiver-10x (future, cloud Receiver) — mounts env.json for offload + destination wiring.
+  - retriever-10x (cloud Retriever) — mounts env.json for queue/bucket discovery.
+  - log10x-mcp (MCP resolver) — reads the ConfigMap by stable name
+    `log10x-env-config-{{ .Values.envConfig.env_id }}` to resolve environment context for
+    every tool call, instead of falling back to env-var bridges.
+
+To inspect:
+  kubectl get configmap log10x-env-config-{{ .Values.envConfig.env_id }} -n {{ .Release.Namespace | default "log10x" }} -o jsonpath='{.data.env\.json}' | jq
+{{- else }}
+
+No ConfigMap was rendered: `envConfig.env_id` is empty.
+
+This is the explicit opt-out path. The log10x-mcp resolver will fall back to its
+env-var bridge (LOG10X_ENV_ID / LOG10X_CUSTOMER_METRICS_* / etc.) instead of
+reading the ConfigMap. Reporter / Receiver / Retriever consumers that expect
+env.json to be present must be configured out of band.
+
+To enable: set `envConfig.env_id` (and `envConfig.nickname`) and re-run helm upgrade.
+{{- end }}
