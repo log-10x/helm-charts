@@ -124,8 +124,10 @@ spec:
           image: {{ include "log10x-reporter.tenxImage" . | quote }}
           imagePullPolicy: {{ .Values.tenx.image.pullPolicy }}
           env:
+            {{- if or .Values.log10xLicenseJwt (not .Values.licenseSecret.create) }}
             - name: TENX_LICENSE_FILE
               value: /etc/tenx/license/license.jwt
+            {{- end }}
             {{- if .Values.airgapped }}
             - name: TENX_AIRGAPPED
               value: "true"
@@ -173,9 +175,11 @@ spec:
           volumeMounts:
             - name: tenx-sockets
               mountPath: {{ dir .Values.tenx.socketPath }}
+            {{- if or .Values.log10xLicenseJwt (not .Values.licenseSecret.create) }}
             - name: tenx-license
               mountPath: /etc/tenx/license
               readOnly: true
+            {{- end }}
             {{- if $gitInit }}
             - name: tenx-git
               mountPath: /etc/tenx/git
@@ -194,12 +198,14 @@ spec:
             name: {{ include "log10x-reporter.fullname" . }}
         - name: tenx-sockets
           emptyDir: {}
+        {{- if or .Values.log10xLicenseJwt (not .Values.licenseSecret.create) }}
         - name: tenx-license
           secret:
             secretName: {{ if .Values.licenseSecret.create }}{{ include "log10x-reporter.fullname" . }}-license{{ else }}{{ .Values.licenseSecret.existingSecret }}{{ end }}
             items:
               - key: {{ .Values.licenseSecret.secretKey }}
                 path: license.jwt
+        {{- end }}
         - name: varlog
           hostPath:
             path: /var/log

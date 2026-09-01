@@ -2,7 +2,7 @@
 
 [Log10x](https://doc.log10x.com) is an observability runtime that executes in edge/cloud environments to optimize and reduce the cost of analyzing and storing log/trace data.
 
-This chart deploys a non-invasive [Log10x Reporter](https://doc.log10x.com/apps/reporter/) as a parallel DaemonSet that tails container logs, ships them to a co-located Log10x engine sidecar, and reports analytics back to the Log10x SaaS backend without replacing your existing log forwarder.
+This chart deploys a non-invasive [Log10x Reporter](https://doc.log10x.com/apps/reporter/) as a parallel DaemonSet that tails container logs, ships them to a co-located Log10x engine sidecar, and reports per-pattern analytics to the metrics backend you configure, without replacing your existing log forwarder.
 
 Use this chart to add cost visibility and pattern analysis on top of your current logging stack with zero changes to applications or existing forwarders.
 
@@ -48,7 +48,7 @@ For full chart options check out [values.yaml](values.yaml), or the [examples](h
 
 #### Log10x license
 
-The chart requires a Log10x license JWT for the engine to start. Download one from [console.log10x.com](https://console.log10x.com). By default, the chart creates a Kubernetes Secret from the `log10xLicenseJwt` value and mounts it as a file in the engine container (read via `TENX_LICENSE_FILE`):
+A license is optional: with none configured the engine runs on its built-in 30-day evaluation license (10 nodes, airgapped). For a production license, see [licensing](https://doc.log10x.com/manage/license/). When `log10xLicenseJwt` is set, the chart creates a Kubernetes Secret from the `log10xLicenseJwt` value and mounts it as a file in the engine container (read via `TENX_LICENSE_FILE`):
 
 ```yaml
 log10xLicenseJwt: "your-actual-license-jwt"
@@ -260,7 +260,7 @@ Container logs → Fluent Bit (tailer) → Unix socket (Forward protocol) → 10
 ```
 
 1. **Fluent Bit** tails container log files from the host's `/var/log/containers` (read-only mount), enriches with Kubernetes metadata, applies the include/exclude filters, and forwards to the 10x sidecar via a Unix socket.
-2. **10x sidecar** runs the `@apps/reporter` pipeline against the incoming events: classification, pattern detection, cost analysis, and ships results to the Log10x SaaS backend.
+2. **10x sidecar** runs the `@apps/reporter` pipeline against the incoming events: classification, pattern detection, cost analysis, and ships results to the metrics backend you configure.
 
 The two containers communicate via a shared `emptyDir` volume containing the Unix socket — no network port between them. The data path stays private to the pod with no listening tcp surface.
 

@@ -22,6 +22,10 @@ For production, prefer pre-creating a Secret out of band and referencing it:
     existingSecret: <your-secret-name>
     secretKey: license-jwt
 {{- end }}
+{{- if and .Values.licenseSecret.create (not .Values.log10xLicenseJwt) }}
+
+No license configured: the engine runs on its built-in 30-day evaluation license (10 nodes, airgapped). Production licenses: https://doc.log10x.com/manage/license/
+{{- end }}
 
 The engine container has no liveness probe. The engine exposes no health
 surface to probe, so the chart does not ship one that cannot fail. If the
