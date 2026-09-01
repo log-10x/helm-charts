@@ -134,12 +134,13 @@ imagePullSecrets: []
 
 ###### Log10x settings ######
 
-# Log10x license JWT. REQUIRED: the chart refuses to render without a license,
-# because the engine exits non-zero at startup without one and the install would
-# crash-loop. Download a JWT from https://console.log10x.com.
+# Log10x license JWT. OPTIONAL: with no license the engine runs on its
+# built-in 30-day evaluation license (10 nodes, airgapped) and the chart
+# renders no license Secret at all. Production licenses:
+# https://doc.log10x.com/manage/license/
 #
-# The chart creates a Kubernetes Secret from this value and mounts it as a file
-# in the engine container, with TENX_LICENSE_FILE pointing at it.
+# When set, the chart creates a Kubernetes Secret from this value and mounts
+# it as a file in the engine container, with TENX_LICENSE_FILE pointing at it.
 #
 # SECURITY WARNING: Do not commit actual license JWTs to version control, and
 # prefer --set-file over --set so the JWT never lands in your shell history:
