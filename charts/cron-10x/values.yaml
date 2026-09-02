@@ -93,8 +93,7 @@ tenx:
   # metrics reporting, no user-attribute enrichment. Source pulls and symbol
   # pushes are unaffected, those are your pipelines and not vendor telemetry.
   #
-  # 'demo' and 'limited' licence types cannot run airgapped. The engine warns
-  # and falls back to online.
+  # Honored for every licence type, including 'demo' and 'limited'.
   #
   airgapped: false
 
