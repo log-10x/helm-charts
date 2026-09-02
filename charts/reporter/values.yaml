@@ -160,8 +160,7 @@ runtimeName: ""
 # reporting, no user-attribute enrichment). Use for clusters that have no path
 # to the vendor SaaS (security policy, isolated network, etc.).
 #
-# Note: 'demo' and 'limited' license types cannot run airgapped — if set with
-# one of these types, the engine logs a warning and runs in online mode anyway.
+# Honored for every license type, including 'demo' and 'limited'.
 airgapped: false
 
 # License Secret configuration

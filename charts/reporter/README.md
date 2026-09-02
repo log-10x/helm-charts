@@ -125,7 +125,7 @@ airgapped: true
 
 When enabled, the engine verifies the license JWT locally against the embedded public key and makes **zero** outbound calls to the Log10x gateway — no startup validation, no metrics reporting, no user-attribute enrichment. Customer-configured outputs (Splunk, Datadog, Elastic, etc.) are unaffected.
 
-`demo` and `limited` license types cannot run airgapped — if `airgapped: true` is set with one of these types, the engine logs a warning and runs in online mode anyway.
+`airgapped: true` is honored for every license type, including `demo` and `limited`.
 
 ### Log filtering
 
