@@ -8,6 +8,16 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+
+    # contents: write is what chart-releaser already needed to create releases.
+    # id-token: write is new and is what makes keyless signing possible: cosign
+    # exchanges this workflow's OIDC token for a short-lived Fulcio certificate,
+    # so the signature is bound to the workflow identity that packaged the chart
+    # and there is no private GPG key to store, rotate, or lose.
+    permissions:
+      contents: write
+      id-token: write
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -30,3 +40,38 @@ jobs:
           charts_dir: charts
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      # chart-releaser packages into .cr-release-packages/ and creates one
+      # release per chart, tagged <chart>-<version>, which is also the .tgz
+      # basename. Sign each package and attach the bundle to its own release.
+      #
+      # sign-blob rather than `helm package --sign`: the GPG route needs a
+      # private key held somewhere, which for a company where one person holds
+      # every credential is a new liability of exactly the kind being fixed
+      # elsewhere in this work. Keyless adds none.
+      #
+      # Skips cleanly when chart-releaser produced nothing, which is every push
+      # to main that did not bump a chart version.
+      - name: Sign released charts
+        run: |
+          shopt -s nullglob
+          packages=(.cr-release-packages/*.tgz)
+          if [ ${#packages[@]} -eq 0 ]; then
+            echo "No chart packages produced by this run; nothing to sign."
+            exit 0
+          fi
+          for pkg in "${packages[@]}"; do
+            tag=$(basename "$pkg" .tgz)
+            echo "signing $pkg for release $tag"
+            cosign sign-blob --yes \
+              --bundle "${pkg}.cosign.bundle" \
+              "$pkg"
+            gh release upload "$tag" "${pkg}.cosign.bundle" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
