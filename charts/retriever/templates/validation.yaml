@@ -1,3 +1,58 @@
+{{- /* Validate object storage provider */ -}}
+{{- $storage := .Values.storage | default dict }}
+{{- $provider := $storage.provider | default "aws" | lower }}
+{{- $validProviders := list "aws" "azure" }}
+{{- if not (has $provider $validProviders) }}
+  {{- fail (printf "storage.provider '%s' is not valid. Must be one of: %s" $provider (join ", " $validProviders)) }}
+{{- end }}
+{{- if eq $provider "azure" }}
+  {{- $azure := $storage.azure | default dict }}
+  {{- if not $azure.account }}
+    {{- fail "storage.azure.account is required when storage.provider is 'azure'. Set it to the storage account name." }}
+  {{- end }}
+  {{- if not $azure.indexContainer }}
+    {{- fail "storage.azure.indexContainer is required when storage.provider is 'azure'. Use 'account/container/path' or 'container/path'." }}
+  {{- end }}
+  {{- $auth := $azure.auth | default dict }}
+  {{- $method := $auth.method | default "" }}
+  {{- $validMethods := list "workloadIdentity" "servicePrincipal" "accountKey" "sasToken" "connectionString" }}
+  {{- if not (has $method $validMethods) }}
+    {{- fail (printf "storage.azure.auth.method '%s' is not valid. Must be one of: %s" $method (join ", " $validMethods)) }}
+  {{- end }}
+  {{- /* Exactly one credential may be configured, and it must match the method */ -}}
+  {{- $configured := list }}
+  {{- if $auth.clientSecret }}{{ $configured = append $configured "servicePrincipal (clientSecret)" }}{{ end }}
+  {{- if $auth.accountKey }}{{ $configured = append $configured "accountKey" }}{{ end }}
+  {{- if $auth.sasToken }}{{ $configured = append $configured "sasToken" }}{{ end }}
+  {{- if $auth.connectionString }}{{ $configured = append $configured "connectionString" }}{{ end }}
+  {{- if gt (len $configured) 1 }}
+    {{- fail (printf "storage.azure.auth carries credentials for more than one method (%s). Configure exactly one, matching storage.azure.auth.method." (join ", " $configured)) }}
+  {{- end }}
+  {{- $secret := $auth.secret | default dict }}
+  {{- if eq $method "workloadIdentity" }}
+    {{- if gt (len $configured) 0 }}
+      {{- fail (printf "storage.azure.auth.method is 'workloadIdentity' but a credential is also set (%s). Workload identity takes no credential; remove it or change the method." (join ", " $configured)) }}
+    {{- end }}
+    {{- if not $auth.clientId }}
+      {{- fail "storage.azure.auth.clientId is required when storage.azure.auth.method is 'workloadIdentity'. Use the client id of the user-assigned managed identity federated with the service account." }}
+    {{- end }}
+  {{- else }}
+    {{- $credential := "" }}
+    {{- if eq $method "servicePrincipal" }}{{ $credential = $auth.clientSecret }}{{ end }}
+    {{- if eq $method "accountKey" }}{{ $credential = $auth.accountKey }}{{ end }}
+    {{- if eq $method "sasToken" }}{{ $credential = $auth.sasToken }}{{ end }}
+    {{- if eq $method "connectionString" }}{{ $credential = $auth.connectionString }}{{ end }}
+    {{- if and (not $credential) (not $secret.existingSecret) }}
+      {{- fail (printf "storage.azure.auth.method is '%s' but neither the matching credential nor storage.azure.auth.secret.existingSecret is set." $method) }}
+    {{- end }}
+    {{- if eq $method "servicePrincipal" }}
+      {{- if or (not $auth.clientId) (not $auth.tenantId) }}
+        {{- fail "storage.azure.auth.clientId and storage.azure.auth.tenantId are required when storage.azure.auth.method is 'servicePrincipal'." }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
 {{- $hasStreamWorker := false }}
 {{- range .Values.clusters }}
   {{- if has "stream" .roles }}
@@ -64,8 +119,14 @@
 {{- fail "scheduledQueries must be an object with 'enabled' and 'jobs' fields. Use 'scheduledQueries: { enabled: false }' or omit scheduledQueries entirely to disable scheduled queries." }}
 {{- end }}
 {{- if and .Values.scheduledQueries.jobs (gt (len .Values.scheduledQueries.jobs) 0) }}
+{{- if eq $provider "azure" }}
+{{- if not ((($storage.azure).queues) | default dict).query }}
+{{- fail "scheduledQueries.enabled is true and scheduledQueries.jobs is configured, but storage.azure.queues.query is not set. Scheduled queries require storage.azure.queues.query to send messages to the query Storage Queue." }}
+{{- end }}
+{{- else }}
 {{- if not .Values.queryQueueUrl }}
 {{- fail "scheduledQueries.enabled is true and scheduledQueries.jobs is configured, but queryQueueUrl is not set. Scheduled queries require queryQueueUrl to send messages to the query SQS queue." }}
+{{- end }}
 {{- end }}
 {{- range $job := .Values.scheduledQueries.jobs }}
 {{- if not $job.name }}

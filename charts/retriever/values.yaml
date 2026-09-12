@@ -77,6 +77,8 @@ serviceAccount:
   # Annotations to add to the service account
   # IMPORTANT: Required for AWS IRSA (IAM Roles for Service Accounts)
   # This allows pods to access S3/SQS without embedding credentials
+  # When storage.provider is azure, eks.amazonaws.com/* annotations are dropped
+  # and the azure.workload.identity/* annotations are added instead.
   annotations: {}
     # Example for AWS EKS:
     # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME
@@ -86,8 +88,128 @@ serviceAccount:
   name: ""
 
 ################################################################################
+# OBJECT STORAGE PROVIDER
+################################################################################
+
+# Selects which object storage the engine reads and writes through.
+# Options: aws (default), azure
+#   aws   - S3 buckets and SQS queues, configured in the EXTERNAL DEPENDENCIES
+#           section below. Nothing else in this block is read.
+#   azure - Azure Blob containers and Azure Storage Queues, configured under
+#           storage.azure below. The S3 and SQS keys below are ignored.
+# Environment variable: TENX_OBJECT_STORAGE_NAME (emitted only when provider is azure;
+# the engine defaults to AWS when the variable is absent)
+storage:
+  provider: aws
+
+  ###### Azure Blob Storage Configuration (provider: azure) ######
+  azure:
+    # Storage account name, not a URL
+    # Environment variable: AZURE_STORAGE_ACCOUNT
+    account: ""
+
+    # Blob container path for indexed results, as "account/container/path" or
+    # "container/path". Required when provider is azure.
+    # Environment variable: TENX_STREAMER_INDEX_BUCKET
+    # Used by all clusters; index role also writes to TENX_QUARKUS_INDEX_WRITE_CONTAINER
+    # Example: "tenxlogs/indexed/"
+    indexContainer: ""
+
+    # Blob container holding source logs. Bare container name.
+    # Environment variable: TENX_STREAMER_INPUT_BUCKET
+    inputContainer: ""
+
+    # Quarkus cloud accessor that polls the work queues.
+    # Environment variable: TENX_QUARKUS_CLOUD_ACCESSOR_CLASS
+    # Property: tenx.quarkus.cloud.accessor.class
+    accessorClass: "com.log10x.ext.quarkus.access.azure.AzureAccessor"
+
+    # Optional service endpoint overrides for Azurite, sovereign clouds or
+    # private endpoints. Leave empty for the public cloud.
+    # Environment variables: AZURE_STORAGE_ENDPOINT, AZURE_STORAGE_QUEUE_ENDPOINT
+    endpoint: ""
+    queueEndpoint: ""
+
+    # Path-style addressing. Set to true for Azurite.
+    # Environment variable: AZURE_STORAGE_PATH_STYLE
+    pathStyle: false
+
+    ###### Azure Storage Queue Configuration ######
+    # Queue names on the storage account above, or full queue URLs.
+    # These replace the SQS queue URLs for provider: azure.
+    queues:
+      # Environment variable: TENX_QUARKUS_INDEX_QUEUE_URL (for index role)
+      index: ""
+
+      # Environment variable: TENX_QUARKUS_QUERY_QUEUE_URL (for query role)
+      # Also the target of scheduled query CronJobs
+      query: ""
+
+      # Environment variable: TENX_QUARKUS_SUBQUERY_QUEUE_URL (for query role)
+      # Environment variable: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT (for all roles)
+      subquery: ""
+
+      # Environment variable: TENX_QUARKUS_STREAM_QUEUE_URL (for stream role)
+      # Environment variable: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT (for all roles)
+      stream: ""
+
+    ###### Azure Credentials ######
+    auth:
+      # How pods authenticate to the storage account.
+      # Options: workloadIdentity, servicePrincipal, accountKey, sasToken, connectionString
+      #   workloadIdentity  - AKS workload identity. No secret. Adds the
+      #                       azure.workload.identity/use pod label and the
+      #                       azure.workload.identity/client-id service account
+      #                       annotation; the webhook injects AZURE_CLIENT_ID,
+      #                       AZURE_TENANT_ID and AZURE_FEDERATED_TOKEN_FILE.
+      #   servicePrincipal  - Entra application. clientId + tenantId + clientSecret.
+      #   accountKey        - Storage account access key.
+      #   sasToken          - Shared access signature.
+      #   connectionString  - Full storage account connection string.
+      method: workloadIdentity
+
+      # Entra tenant id. Required for workloadIdentity and servicePrincipal.
+      tenantId: ""
+
+      # Client id of the user-assigned managed identity (workloadIdentity) or of
+      # the Entra application (servicePrincipal).
+      clientId: ""
+
+      # Credential value for the selected method. Exactly one may be set, and it
+      # must match method.
+      # SECURITY WARNING: Do not commit credentials to version control
+      # Provide via: --set-string storage.azure.auth.<field>="..." or a separate values file
+      clientSecret: ""       # method: servicePrincipal  -> AZURE_CLIENT_SECRET
+      accountKey: ""         # method: accountKey        -> AZURE_STORAGE_KEY
+      sasToken: ""           # method: sasToken          -> AZURE_STORAGE_SAS_TOKEN
+      connectionString: ""   # method: connectionString  -> AZURE_STORAGE_CONNECTION_STRING
+
+      # Secret holding the credential above. Not used by workloadIdentity.
+      secret:
+        # Set to true to let the chart manage the secret lifecycle
+        # The secret will be created/deleted with the Helm release
+        # Set to false if using existingSecret or external secret management
+        create: true
+
+        # Use an existing secret instead of creating one
+        # Useful for:
+        # - External secret management tools (External Secrets Operator, Vault, etc.)
+        # - Shared secrets across multiple releases
+        # - Secrets that should persist beyond the chart lifecycle
+        existingSecret: ""
+
+        # The key within the secret that contains the credential
+        secretKey: "azure-credential"
+
+        # Annotations to add to the secret (useful for external secret management)
+        annotations: {}
+          # Example for External Secrets Operator:
+          # external-secrets.io/managed: "true"
+
+################################################################################
 # EXTERNAL DEPENDENCIES (S3 & SQS)
 ################################################################################
+# Read only when storage.provider is aws. For azure, set storage.azure above.
 
 ###### S3 Bucket Configuration ######
 
@@ -532,9 +654,18 @@ scheduledQueries:
 
   # Container image for sending SQS messages
   # Uses AWS CLI to send messages to the query queue
+  # Used when storage.provider is aws
   image:
     repository: amazon/aws-cli
     tag: "2.15.17"
+    pullPolicy: IfNotPresent
+
+  # Container image for enqueueing to an Azure Storage Queue
+  # Uses the Azure CLI (az storage message put) against storage.azure.queues.query
+  # Used when storage.provider is azure
+  azureImage:
+    repository: mcr.microsoft.com/azure-cli
+    tag: "2.64.0"
     pullPolicy: IfNotPresent
 
 

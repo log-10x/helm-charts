@@ -112,9 +112,171 @@ Clones config and/or symbols repositories to an emptyDir volume
 {{- end -}}
 
 {{/*
+Object storage provider, lowercased. Defaults to aws.
+*/}}
+{{- define "log10x-retriever.storageProvider" -}}
+{{- $storage := .Values.storage | default dict -}}
+{{- $storage.provider | default "aws" | lower -}}
+{{- end -}}
+
+{{/*
+Returns "true" when the release targets Azure Blob Storage, empty otherwise
+*/}}
+{{- define "log10x-retriever.isAzure" -}}
+{{- if eq (include "log10x-retriever.storageProvider" .) "azure" -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Returns "true" when Azure credentials come from AKS workload identity
+*/}}
+{{- define "log10x-retriever.azureWorkloadIdentity" -}}
+{{- if include "log10x-retriever.isAzure" . -}}
+{{- $auth := (((.Values.storage).azure).auth) | default dict -}}
+{{- if eq ($auth.method | default "workloadIdentity") "workloadIdentity" -}}
+true
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Name of the secret holding the Azure storage credential
+*/}}
+{{- define "log10x-retriever.azureCredentialSecretName" -}}
+{{- $secret := ((((.Values.storage).azure).auth).secret) | default dict -}}
+{{- $secret.existingSecret | default (printf "%s-azure-credential" (include "log10x-retriever.fullname" .)) -}}
+{{- end -}}
+
+{{/*
+Service account annotations
+On azure, eks.amazonaws.com/* annotations are dropped and the workload identity
+annotations are added instead
+*/}}
+{{- define "log10x-retriever.serviceAccountAnnotations" -}}
+{{- $annotations := dict -}}
+{{- $isAzure := include "log10x-retriever.isAzure" . -}}
+{{- range $key, $value := (.Values.serviceAccount.annotations | default dict) -}}
+{{- if not (and $isAzure (hasPrefix "eks.amazonaws.com/" $key)) -}}
+{{- $_ := set $annotations $key $value -}}
+{{- end -}}
+{{- end -}}
+{{- if include "log10x-retriever.azureWorkloadIdentity" . -}}
+{{- $auth := (((.Values.storage).azure).auth) | default dict -}}
+{{- if $auth.clientId -}}
+{{- $_ := set $annotations "azure.workload.identity/client-id" $auth.clientId -}}
+{{- end -}}
+{{- if $auth.tenantId -}}
+{{- $_ := set $annotations "azure.workload.identity/tenant-id" $auth.tenantId -}}
+{{- end -}}
+{{- end -}}
+{{- if $annotations -}}
+{{- toYaml $annotations -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Azure Blob Storage environment variables for the main container
+Takes a dict with keys: cluster (cluster object), root (root context)
+Storage account, containers and credentials; queue URLs come from roleEnvVars
+*/}}
+{{- define "log10x-retriever.azureStorageEnvVars" -}}
+{{- $cluster := .cluster -}}
+{{- $root := .root -}}
+{{- $azure := ((($root.Values).storage).azure) | default dict -}}
+- name: TENX_OBJECT_STORAGE_NAME
+  value: "Azure"
+{{- if $azure.accessorClass }}
+- name: TENX_QUARKUS_CLOUD_ACCESSOR_CLASS
+  value: {{ $azure.accessorClass | quote }}
+{{- end }}
+{{- if $azure.inputContainer }}
+- name: TENX_STREAMER_INPUT_BUCKET
+  value: {{ $azure.inputContainer | quote }}
+{{- end }}
+{{- if $azure.indexContainer }}
+- name: TENX_STREAMER_INDEX_BUCKET
+  value: {{ $azure.indexContainer | quote }}
+{{- end }}
+{{- if and (has "index" $cluster.roles) $azure.indexContainer }}
+- name: TENX_QUARKUS_INDEX_WRITE_CONTAINER
+  value: {{ $azure.indexContainer | quote }}
+{{- end }}
+{{- include "log10x-retriever.azureAuthEnvVars" $root }}
+{{- end -}}
+
+{{/*
+Azure storage account and credential environment variables
+Shared by the main container and the scheduled query CronJobs
+Workload identity emits no credentials; the AKS webhook injects AZURE_CLIENT_ID,
+AZURE_TENANT_ID and AZURE_FEDERATED_TOKEN_FILE from the service account annotation
+*/}}
+{{- define "log10x-retriever.azureAuthEnvVars" -}}
+{{- $azure := (((.Values).storage).azure) | default dict -}}
+{{- $auth := $azure.auth | default dict -}}
+{{- $method := $auth.method | default "workloadIdentity" -}}
+{{- $secretName := include "log10x-retriever.azureCredentialSecretName" . -}}
+{{- $secretKey := (($auth.secret) | default dict).secretKey | default "azure-credential" -}}
+{{- if $azure.account }}
+- name: AZURE_STORAGE_ACCOUNT
+  value: {{ $azure.account | quote }}
+{{- end }}
+{{- if $azure.endpoint }}
+- name: AZURE_STORAGE_ENDPOINT
+  value: {{ $azure.endpoint | quote }}
+{{- end }}
+{{- if $azure.queueEndpoint }}
+- name: AZURE_STORAGE_QUEUE_ENDPOINT
+  value: {{ $azure.queueEndpoint | quote }}
+{{- end }}
+{{- if $azure.pathStyle }}
+- name: AZURE_STORAGE_PATH_STYLE
+  value: "true"
+{{- end }}
+{{- if eq $method "servicePrincipal" }}
+- name: AZURE_CLIENT_ID
+  value: {{ $auth.clientId | quote }}
+- name: AZURE_TENANT_ID
+  value: {{ $auth.tenantId | quote }}
+- name: AZURE_CLIENT_SECRET
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ $secretKey }}
+{{- else if eq $method "accountKey" }}
+- name: AZURE_STORAGE_KEY
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ $secretKey }}
+{{- else if eq $method "sasToken" }}
+- name: AZURE_STORAGE_SAS_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ $secretKey }}
+{{- else if eq $method "connectionString" }}
+- name: AZURE_STORAGE_CONNECTION_STRING
+  valueFrom:
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ $secretKey }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Last path segment of an Azure Storage Queue reference
+Accepts a bare queue name or a full https://<account>.queue.core.windows.net/<name> URL
+*/}}
+{{- define "log10x-retriever.azureQueueName" -}}
+{{- . | trimSuffix "/" | splitList "/" | last -}}
+{{- end -}}
+
+{{/*
 Generate environment variables for cluster roles
 Takes a dict with keys: cluster (cluster object), values (root values object)
 Generates env vars based on roles array and global queue URLs
+On azure the queue references come from storage.azure.queues instead
 */}}
 {{- define "log10x-retriever.roleEnvVars" -}}
 {{- $cluster := .cluster -}}
@@ -122,6 +284,39 @@ Generates env vars based on roles array and global queue URLs
 {{- $hasIndex := has "index" $cluster.roles -}}
 {{- $hasQuery := has "query" $cluster.roles -}}
 {{- $hasStream := has "stream" $cluster.roles -}}
+{{- if eq (($values.storage | default dict).provider | default "aws" | lower) "azure" -}}
+{{- $queues := ((($values.storage).azure).queues) | default dict -}}
+{{- if and $hasIndex $queues.index }}
+- name: TENX_QUARKUS_INDEX_QUEUE_URL
+  value: {{ $queues.index | quote }}
+{{- end }}
+{{- if and $hasQuery $queues.query }}
+- name: TENX_QUARKUS_QUERY_QUEUE_URL
+  value: {{ $queues.query | quote }}
+{{- end }}
+{{- if and $hasQuery $queues.subquery }}
+- name: TENX_QUARKUS_SUBQUERY_QUEUE_URL
+  value: {{ $queues.subquery | quote }}
+{{- end }}
+{{- if and $hasStream $queues.stream }}
+- name: TENX_QUARKUS_STREAM_QUEUE_URL
+  value: {{ $queues.stream | quote }}
+{{- end }}
+{{- if $hasStream }}
+- name: TENX_REMOTE_FORWARD_HOST
+  value: "127.0.0.1"
+- name: TENX_REMOTE_FORWARD_PORT
+  value: "24224"
+{{- end }}
+{{- if $queues.subquery }}
+- name: TENX_INVOKE_PIPELINE_SCAN_ENDPOINT
+  value: {{ $queues.subquery | quote }}
+{{- end }}
+{{- if $queues.stream }}
+- name: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT
+  value: {{ $queues.stream | quote }}
+{{- end }}
+{{- else -}}
 {{- if and $hasIndex $values.indexQueueUrl }}
 - name: TENX_QUARKUS_INDEX_QUEUE_URL
   value: {{ $values.indexQueueUrl | quote }}
@@ -152,6 +347,7 @@ Generates env vars based on roles array and global queue URLs
 - name: TENX_INVOKE_PIPELINE_STREAM_ENDPOINT
   value: {{ $values.streamQueueUrl | quote }}
 {{- end }}
+{{- end -}}
 {{- end -}}
 
 {{/*

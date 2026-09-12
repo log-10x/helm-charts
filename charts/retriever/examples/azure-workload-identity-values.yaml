@@ -1,0 +1,30 @@
+# Azure Blob Storage with AKS workload identity
+# Requires the workload identity webhook on the cluster, a user-assigned managed
+# identity holding Storage Blob Data Contributor and Storage Queue Data
+# Contributor on the account, and a federated credential bound to the service
+# account this release creates.
+
+# REQUIRED: Set your Log10x API key
+log10xApiKey: "YOUR-LOG10X-API-KEY"
+
+storage:
+  provider: azure
+  azure:
+    account: "tenxlogs"
+    indexContainer: "tenxlogs/index/"
+    inputContainer: "rawlogs"
+
+    # Storage Queue names on the account above
+    queues:
+      index: "index-queue"
+      query: "query-queue"
+      subquery: "subquery-queue"
+      stream: "stream-queue"
+
+    auth:
+      method: workloadIdentity
+      clientId: "YOUR-MANAGED-IDENTITY-CLIENT-ID"
+      tenantId: "YOUR-ENTRA-TENANT-ID"
+
+scheduledQueries:
+  enabled: false

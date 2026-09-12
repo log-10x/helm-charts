@@ -1,0 +1,30 @@
+# Azure Blob Storage with a storage account access key
+# Provide the key at install time:
+#   helm install my-retriever log10x/retriever-10x \
+#     -f azure-account-key-values.yaml \
+#     --set-string storage.azure.auth.accountKey="$AZURE_STORAGE_KEY"
+
+# REQUIRED: Set your Log10x API key
+log10xApiKey: "YOUR-LOG10X-API-KEY"
+
+storage:
+  provider: azure
+  azure:
+    account: "tenxlogs"
+    indexContainer: "tenxlogs/index/"
+    inputContainer: "rawlogs"
+
+    # Storage Queue names on the account above
+    queues:
+      index: "index-queue"
+      query: "query-queue"
+      subquery: "subquery-queue"
+      stream: "stream-queue"
+
+    auth:
+      method: accountKey
+      # SECURITY WARNING: provide via --set-string, do not commit the key
+      accountKey: "YOUR-STORAGE-ACCOUNT-KEY"
+
+scheduledQueries:
+  enabled: false

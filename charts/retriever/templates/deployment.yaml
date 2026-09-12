@@ -29,6 +29,9 @@ spec:
       labels:
         app: {{ include "log10x-retriever.name" $ }}
         cluster: {{ $cluster.name }}
+        {{- if include "log10x-retriever.azureWorkloadIdentity" $ }}
+        azure.workload.identity/use: "true"
+        {{- end }}
     spec:
       {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
@@ -61,6 +64,9 @@ spec:
               value: "{{ $cluster.maxQueuedRequests | default 1000 }}"
             - name: TENX_QUARKUS_READINESS_THRESHOLD
               value: "{{ $cluster.readinessThresholdPercent | default 90 }}"
+          {{- if include "log10x-retriever.isAzure" $ }}
+          {{- include "log10x-retriever.azureStorageEnvVars" (dict "cluster" $cluster "root" $) | nindent 12 }}
+          {{- else }}
           {{- if $.Values.inputBucket }}
             - name: TENX_STREAMER_INPUT_BUCKET
               value: {{ $.Values.inputBucket | quote }}
@@ -73,9 +79,11 @@ spec:
             - name: TENX_QUARKUS_INDEX_WRITE_CONTAINER
               value: {{ $.Values.indexBucket | quote }}
           {{- end }}
+          {{- /* TENX_QUERY_LOG_GROUP writes to CloudWatch Logs and has no Azure equivalent */}}
           {{- if $.Values.queryLogGroup }}
             - name: TENX_QUERY_LOG_GROUP
               value: {{ $.Values.queryLogGroup | quote }}
+          {{- end }}
           {{- end }}
           {{- if and $.Values.config $.Values.config.git $.Values.config.git.enabled }}
             - name: TENX_CONFIG
