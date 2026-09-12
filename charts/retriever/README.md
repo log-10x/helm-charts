@@ -342,6 +342,7 @@ helm install my-retriever log10x/retriever-10x -f azure-values.yaml \
 | `storage.azure.auth.clientId` / `.tenantId` | Managed identity or Entra application ids | For workloadIdentity and servicePrincipal |
 | `storage.azure.auth.secret.existingSecret` | Hold the credential in a secret you manage | No |
 | `storage.azure.auth.secret.secretKey` | Key within that secret | No, defaults to `azure-credential` |
+| `storage.azure.invoke` | Fan-out transport: `queue` or `http` (`TENX_OBJECT_STORAGE_INVOKE`) | No, defaults to `queue` |
 | `storage.azure.accessorClass` | Quarkus cloud accessor class (`tenx.quarkus.cloud.accessor.class`) | No |
 | `storage.azure.endpoint` / `.queueEndpoint` / `.pathStyle` | Endpoint overrides for Azurite or sovereign clouds | No |
 

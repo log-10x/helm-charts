@@ -186,6 +186,10 @@ Storage account, containers and credentials; queue URLs come from roleEnvVars
 {{- $azure := ((($root.Values).storage).azure) | default dict -}}
 - name: TENX_OBJECT_STORAGE_NAME
   value: "Azure"
+{{- if $azure.invoke }}
+- name: TENX_OBJECT_STORAGE_INVOKE
+  value: {{ $azure.invoke | quote }}
+{{- end }}
 {{- if $azure.accessorClass }}
 - name: TENX_QUARKUS_CLOUD_ACCESSOR_CLASS
   value: {{ $azure.accessorClass | quote }}

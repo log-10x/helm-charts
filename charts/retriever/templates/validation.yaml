@@ -13,6 +13,10 @@
   {{- if not $azure.indexContainer }}
     {{- fail "storage.azure.indexContainer is required when storage.provider is 'azure'. Use 'account/container/path' or 'container/path'." }}
   {{- end }}
+  {{- $validInvoke := list "queue" "http" }}
+  {{- if not (has ($azure.invoke | default "queue") $validInvoke) }}
+    {{- fail (printf "storage.azure.invoke '%s' is not valid. Must be one of: %s" $azure.invoke (join ", " $validInvoke)) }}
+  {{- end }}
   {{- $auth := $azure.auth | default dict }}
   {{- $method := $auth.method | default "" }}
   {{- $validMethods := list "workloadIdentity" "servicePrincipal" "accountKey" "sasToken" "connectionString" }}

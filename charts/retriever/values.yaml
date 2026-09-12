@@ -119,6 +119,12 @@ storage:
     # Environment variable: TENX_STREAMER_INPUT_BUCKET
     inputContainer: ""
 
+    # How the pipeline fans work out to the next stage.
+    # Options: queue (Azure Storage Queue), http
+    # Environment variable: TENX_OBJECT_STORAGE_INVOKE
+    # The AWS equivalent is sqs, which Azure does not have.
+    invoke: queue
+
     # Quarkus cloud accessor that polls the work queues.
     # Environment variable: TENX_QUARKUS_CLOUD_ACCESSOR_CLASS
     # Property: tenx.quarkus.cloud.accessor.class
