@@ -54,6 +54,19 @@ QUEUE_PREFIX="tenx"
 IMAGE_TAG="1.1.78"
 OPERATOR_ROLES="true"
 DESTROY="false"
+DRY_RUN="false"
+
+# Version of this chart, pinned into the 'helm install' the script prints, so
+# that the install matches the script the operator is running rather than
+# whatever is newest in the repository at the time.
+#
+# KEEP IN SYNC WITH charts/retriever/Chart.yaml 'version'. A constant rather
+# than a read of Chart.yaml, because the script has to print the right version
+# even when it is run from a copy that was lifted out of the chart tree and no
+# Chart.yaml sits next to it. When one does sit next to it, at ../../Chart.yaml,
+# check_chart_version below compares the two and warns on drift, which is the
+# case every run out of a git checkout or a 'helm pull --untar' takes.
+CHART_VERSION="1.0.24"
 
 # AKS node pool for a cluster this script creates. Two nodes carry the
 # all-in-one retriever and leave headroom for the workload identity webhook.
@@ -77,14 +90,18 @@ die()  { printf '%s\n' "$SCRIPT_NAME: $*" >&2; exit 1; }
 usage() {
   cat >&2 <<USAGE
 usage:
-  $SCRIPT_NAME --resource-group RG --location LOC --account NAME
-               [--create-aks NAME | --aks NAME]
-               --namespace NS --release NAME --values-out FILE
-               [--input-container logs] [--index-container tenx-index]
-               [--index-path tenx] [--queue-prefix tenx] [--image-tag TAG]
-               [--node-size SIZE] [--no-operator-roles]
+  bash $SCRIPT_NAME --resource-group RG --location LOC --account NAME
+       [--create-aks NAME | --aks NAME]
+       --namespace NS --release NAME --values-out FILE
+       [--input-container logs] [--index-container tenx-index]
+       [--index-path tenx] [--queue-prefix tenx] [--image-tag TAG]
+       [--node-size SIZE] [--no-operator-roles] [--dry-run]
 
-  $SCRIPT_NAME --destroy --resource-group RG
+  bash $SCRIPT_NAME --destroy --resource-group RG
+
+  Run it through 'bash'. 'helm package' writes every file in a chart tarball as
+  mode 0644 whatever its mode in git, so the copy that comes out of 'helm pull
+  --untar' is never executable.
 
 options:
   --resource-group RG     resource group to create or converge
@@ -112,6 +129,9 @@ options:
                           them 'az storage ... --auth-mode login' is refused and
                           every data plane call needs --account-key.
   --destroy               delete the resource group and everything in it
+  --dry-run               validate the arguments, create the directory for
+                          --values-out and print what would be provisioned,
+                          then stop without touching any Azure resource
   -h, --help              this message
 
 environment:
@@ -143,6 +163,7 @@ while [ $# -gt 0 ]; do
     --node-size)       AKS_NODE_SIZE="${2:-}"; shift 2 ;;
     --no-operator-roles) OPERATOR_ROLES="false"; shift ;;
     --destroy)         DESTROY="true"; shift ;;
+    --dry-run)         DRY_RUN="true"; shift ;;
     -h|--help)         usage; exit 0 ;;
     *)                 usage; die "unknown argument '$1'" ;;
   esac
@@ -189,8 +210,18 @@ if [ "${#ACCOUNT}" -lt 3 ] || [ "${#ACCOUNT}" -gt 24 ]; then
   die "--account '$ACCOUNT' is ${#ACCOUNT} characters. Use 3 to 24."
 fi
 
-VALUES_DIR="$(cd "$(dirname "$VALUES_OUT")" 2>/dev/null && pwd)" \
-  || die "the directory for --values-out '$VALUES_OUT' does not exist"
+# The directory for --values-out is created when it is missing, the whole path
+# at once. Refusal is reserved for the case that is a real problem: a path that
+# cannot be created or cannot be written to.
+VALUES_DIR_RAW="$(dirname "$VALUES_OUT")"
+if [ ! -d "$VALUES_DIR_RAW" ]; then
+  mkdir -p "$VALUES_DIR_RAW" \
+    || die "could not create the directory for --values-out '$VALUES_OUT'. Check the path and the permissions on its parent."
+fi
+VALUES_DIR="$(cd "$VALUES_DIR_RAW" 2>/dev/null && pwd)" \
+  || die "the directory for --values-out '$VALUES_OUT' is not reachable"
+[ -w "$VALUES_DIR" ] \
+  || die "the directory for --values-out '$VALUES_OUT' is not writable"
 VALUES_OUT="$VALUES_DIR/$(basename "$VALUES_OUT")"
 
 QUEUE_INDEX="${QUEUE_PREFIX}-index"
@@ -202,6 +233,42 @@ IDENTITY_NAME="${RELEASE}-identity"
 SYSTEM_TOPIC="${ACCOUNT}-blob"
 EVENT_SUBSCRIPTION="blob-created-to-index"
 KUBECONFIG_OUT="${VALUES_DIR}/${AKS_NAME}.kubeconfig"
+
+# Warn when this constant has drifted from the Chart.yaml it shipped beside.
+# Only advisory: a copy of the script outside a chart tree has no Chart.yaml to
+# compare against, and that is a legitimate way to run it.
+check_chart_version() {
+  local chart_yaml declared
+  chart_yaml="$(dirname "$SCRIPT_PATH")/../../Chart.yaml"
+  [ -f "$chart_yaml" ] || return 0
+  declared="$(sed -n 's/^version:[[:space:]]*//p' "$chart_yaml" | head -1 | tr -d '[:space:]')"
+  [ -n "$declared" ] || return 0
+  if [ "$declared" != "$CHART_VERSION" ]; then
+    log "warning: this script pins chart $CHART_VERSION, the Chart.yaml next to it says $declared"
+    step "the 'helm install' printed at the end will name $CHART_VERSION"
+    step "fix by moving CHART_VERSION in $SCRIPT_NAME to match Chart.yaml"
+  fi
+}
+check_chart_version
+
+# --dry-run stops here. Everything above validates arguments, resolves the
+# output directory and derives names. Nothing above creates or changes an Azure
+# resource, so this is the last point at which the script can stop having spent
+# nothing.
+if [ "$DRY_RUN" = "true" ]; then
+  log "dry run, no Azure resource was created or changed"
+  step "resource group   $RESOURCE_GROUP in $LOCATION"
+  step "storage account  $ACCOUNT"
+  step "containers       $INPUT_CONTAINER, $INDEX_CONTAINER/$INDEX_PATH"
+  step "queues           $QUEUE_INDEX, $QUEUE_QUERY, $QUEUE_SUBQUERY, $QUEUE_STREAM"
+  step "identity         $IDENTITY_NAME"
+  step "AKS              $AKS_NAME (create: $CREATE_AKS)"
+  step "values file      $VALUES_OUT"
+  step "kubeconfig       $KUBECONFIG_OUT"
+  step "chart            log10x/retriever-10x --version $CHART_VERSION"
+  step "image tag        $IMAGE_TAG"
+  exit 0
+fi
 
 ###############################################################################
 # helpers
@@ -277,7 +344,7 @@ resolve_operator() {
 # and the exact command to re-run once a size is chosen.
 node_size_help() {
   local arg quoted retry_cmd skip_next="false"
-  retry_cmd="$(printf '%q' "$SCRIPT_PATH")"
+  retry_cmd="bash $(printf '%q' "$SCRIPT_PATH")"
   for arg in ${ORIGINAL_ARGS[@]+"${ORIGINAL_ARGS[@]}"}; do
     case "$arg" in
       --node-size) skip_next="true"; continue ;;
@@ -637,7 +704,7 @@ QUERY_BODY='{"name":"app","from":"now(\"-1h\")","to":"now()","search":"severity_
 
 cat >&2 <<NEXT
 
-Provisioned. Five steps follow.
+Provisioned. Six steps follow.
 
 1. Point kubectl at the cluster.
 
@@ -649,6 +716,7 @@ export KUBECONFIG=$KUBECONFIG_OUT
    --set-string log10xApiKey="\$LOG10X_API_KEY".
 
 helm install $RELEASE log10x/retriever-10x \\
+  --version $CHART_VERSION \\
   --namespace $NAMESPACE \\
   --create-namespace \\
   -f $VALUES_OUT
@@ -687,6 +755,28 @@ az storage blob list \\
   --prefix $INDEX_PATH/tenx/app/qr/ \\
   --query "[].name" -o tsv
 
+6. Read the results. The first command picks the most recently written .jsonl
+   under that prefix, the second downloads it, the third prints it. One matched
+   event per line.
+
+blob="\$(az storage blob list \\
+  --account-name $ACCOUNT \\
+  --auth-mode login \\
+  -c $INDEX_CONTAINER \\
+  --prefix $INDEX_PATH/tenx/app/qr/ \\
+  --query "sort_by([?ends_with(name, '.jsonl')], &properties.lastModified)[-1].name" \\
+  -o tsv)"
+
+az storage blob download \\
+  --account-name $ACCOUNT \\
+  --auth-mode login \\
+  -c $INDEX_CONTAINER \\
+  -n "\$blob" \\
+  -f ./results.jsonl \\
+  -o none
+
+cat ./results.jsonl
+
 Tear everything down with:
-  $SCRIPT_NAME --destroy --resource-group $RESOURCE_GROUP
+  bash $SCRIPT_PATH --destroy --resource-group $RESOURCE_GROUP
 NEXT

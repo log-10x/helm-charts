@@ -7,6 +7,13 @@
 # REQUIRED: Set your Log10x API key
 log10xApiKey: "YOUR-LOG10X-API-KEY"
 
+# REQUIRED on Azure. The chart's values.yaml ships image.tag: "", which falls
+# back to the chart appVersion, and that appVersion predates the Azure Blob
+# index and read path. A values file with no image.tag installs an engine that
+# cannot do the Azure work.
+image:
+  tag: "1.1.78"
+
 storage:
   provider: azure
   azure:
