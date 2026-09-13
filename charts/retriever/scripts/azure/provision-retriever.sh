@@ -13,7 +13,8 @@
 #   four Storage Queues, index / query / subquery / stream
 #   user-assigned managed identity
 #   Storage Blob Data Contributor and Storage Queue Data Contributor on the
-#     account, granted to that identity
+#     account, granted to that identity and to the signed in operator, so the
+#     az commands the docs page prints work with --auth-mode login
 #   Event Grid system topic on the account, and a BlobCreated subscription that
 #     delivers to the index queue, filtered to the input container
 #   AKS with the OIDC issuer and workload identity enabled, or verification that
@@ -29,6 +30,10 @@
 set -euo pipefail
 
 SCRIPT_NAME="$(basename "$0")"
+SCRIPT_PATH="$0"
+
+# Kept verbatim so a failure can print the exact command to re-run.
+ORIGINAL_ARGS=("$@")
 
 ###############################################################################
 # defaults
@@ -46,16 +51,17 @@ INPUT_CONTAINER="logs"
 INDEX_CONTAINER="tenx-index"
 INDEX_PATH="tenx"
 QUEUE_PREFIX="tenx"
-IMAGE_TAG=""
+IMAGE_TAG="1.1.78"
+OPERATOR_ROLES="true"
 DESTROY="false"
 
 # AKS node pool for a cluster this script creates. Two nodes carry the
 # all-in-one retriever and leave headroom for the workload identity webhook.
-# AKS_NODE_SIZE is empty by default so the cluster takes the CLI's own default
-# size. Subscriptions differ in which sizes they allow, and a hard coded size
-# that the subscription refuses fails the whole run.
+# Subscriptions differ in which VM sizes they allow. When the create call is
+# refused for the size, the script prints the retry command and the query that
+# lists the sizes this subscription and region do allow.
 AKS_NODE_COUNT="${AKS_NODE_COUNT:-2}"
-AKS_NODE_SIZE="${AKS_NODE_SIZE:-}"
+AKS_NODE_SIZE="${AKS_NODE_SIZE:-Standard_D2s_v5}"
 
 # Name of the federated credential on the managed identity.
 FEDERATED_CREDENTIAL_NAME="retriever-sa"
@@ -76,6 +82,7 @@ usage:
                --namespace NS --release NAME --values-out FILE
                [--input-container logs] [--index-container tenx-index]
                [--index-path tenx] [--queue-prefix tenx] [--image-tag TAG]
+               [--node-size SIZE] [--no-operator-roles]
 
   $SCRIPT_NAME --destroy --resource-group RG
 
@@ -94,15 +101,23 @@ options:
   --index-container NAME  blob container holding the index, default tenx-index
   --index-path PATH       prefix inside the index container, default tenx
   --queue-prefix PREFIX   Storage Queue name prefix, default tenx
-  --image-tag TAG         pin image.tag in the values file
+  --image-tag TAG         engine image tag written to image.tag in the values
+                          file, default $IMAGE_TAG
+  --node-size SIZE        VM size for a cluster this script creates, default
+                          $AKS_NODE_SIZE. Subscriptions differ in which sizes
+                          they allow; the script prints how to list the allowed
+                          ones when a create is refused for the size.
+  --no-operator-roles     do not grant the signed in operator the Storage Blob
+                          and Storage Queue data roles on the account. Without
+                          them 'az storage ... --auth-mode login' is refused and
+                          every data plane call needs --account-key.
   --destroy               delete the resource group and everything in it
   -h, --help              this message
 
 environment:
   AKS_NODE_COUNT          node count for a created cluster, default 2
-  AKS_NODE_SIZE           node size for a created cluster, default is whatever
-                          the Azure CLI picks. Set it when the subscription
-                          refuses that size.
+  AKS_NODE_SIZE           node size for a created cluster, overridden by
+                          --node-size
 USAGE
 }
 
@@ -125,6 +140,8 @@ while [ $# -gt 0 ]; do
     --index-path)      INDEX_PATH="${2:-}"; shift 2 ;;
     --queue-prefix)    QUEUE_PREFIX="${2:-}"; shift 2 ;;
     --image-tag)       IMAGE_TAG="${2:-}"; shift 2 ;;
+    --node-size)       AKS_NODE_SIZE="${2:-}"; shift 2 ;;
+    --no-operator-roles) OPERATOR_ROLES="false"; shift ;;
     --destroy)         DESTROY="true"; shift ;;
     -h|--help)         usage; exit 0 ;;
     *)                 usage; die "unknown argument '$1'" ;;
@@ -207,7 +224,7 @@ retry() {
 }
 
 ensure_role_assignment() {
-  local role="$1" principal="$2" scope="$3" existing
+  local role="$1" principal="$2" scope="$3" principal_type="${4:-ServicePrincipal}" existing
 
   existing="$(az role assignment list \
     --assignee-object-id "$principal" \
@@ -216,18 +233,74 @@ ensure_role_assignment() {
     --query "length(@)" -o tsv 2>/dev/null || echo 0)"
 
   if [ "${existing:-0}" != "0" ]; then
-    step "role '$role' already assigned"
+    step "role '$role' already assigned to $principal_type $principal"
     return 0
   fi
 
-  step "granting '$role' on the storage account"
+  step "granting '$role' on the storage account to $principal_type $principal"
   retry 12 10 az role assignment create \
     --assignee-object-id "$principal" \
-    --assignee-principal-type ServicePrincipal \
+    --assignee-principal-type "$principal_type" \
     --role "$role" \
     --scope "$scope" \
     -o none \
     || die "could not assign '$role'. The signed in identity needs Owner or User Access Administrator on $scope."
+}
+
+# Object id of whoever is running this script, and the principal type a role
+# assignment needs for them. A user login answers through
+# 'az ad signed-in-user show'; a service principal login has no signed in user,
+# so the app id in the account record is resolved to its service principal.
+# Either lookup can be refused by a tenant that blocks directory reads, and that
+# is not fatal: it costs the operator the --auth-mode login commands, nothing
+# the retriever itself needs.
+OPERATOR_OBJECT_ID=""
+OPERATOR_PRINCIPAL_TYPE=""
+
+resolve_operator() {
+  local user_type app_id
+  user_type="$(az account show --query "user.type" -o tsv 2>/dev/null || echo "")"
+
+  if [ "$user_type" = "servicePrincipal" ]; then
+    app_id="$(az account show --query "user.name" -o tsv 2>/dev/null || echo "")"
+    if [ -n "$app_id" ]; then
+      OPERATOR_OBJECT_ID="$(az ad sp show --id "$app_id" --query id -o tsv 2>/dev/null || echo "")"
+    fi
+    OPERATOR_PRINCIPAL_TYPE="ServicePrincipal"
+  else
+    OPERATOR_OBJECT_ID="$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo "")"
+    OPERATOR_PRINCIPAL_TYPE="User"
+  fi
+}
+
+# The node size this subscription refused, what to run to find one it allows,
+# and the exact command to re-run once a size is chosen.
+node_size_help() {
+  local arg quoted retry_cmd skip_next="false"
+  retry_cmd="$(printf '%q' "$SCRIPT_PATH")"
+  for arg in ${ORIGINAL_ARGS[@]+"${ORIGINAL_ARGS[@]}"}; do
+    case "$arg" in
+      --node-size) skip_next="true"; continue ;;
+    esac
+    if [ "$skip_next" = "true" ]; then skip_next="false"; continue; fi
+    quoted="$(printf '%q' "$arg")"
+    retry_cmd="$retry_cmd $quoted"
+  done
+
+  cat >&2 <<HELP
+
+The subscription refuses VM size $AKS_NODE_SIZE in $LOCATION. Nothing was left
+half created; the resource group and the storage side are converged and the
+re-run below picks up where this stopped.
+
+List the sizes this subscription and region do allow:
+
+  az vm list-skus --location $LOCATION --resource-type virtualMachines --query "[?restrictions[?type=='Location']==\\\`[]\\\`].name" -o tsv | head
+
+Then re-run with one of them:
+
+  $retry_cmd --node-size <SIZE>
+HELP
 }
 
 ###############################################################################
@@ -344,6 +417,25 @@ IDENTITY_PRINCIPAL_ID="$(az identity show -n "$IDENTITY_NAME" -g "$RESOURCE_GROU
 ensure_role_assignment "Storage Blob Data Contributor"  "$IDENTITY_PRINCIPAL_ID" "$ACCOUNT_ID"
 ensure_role_assignment "Storage Queue Data Contributor" "$IDENTITY_PRINCIPAL_ID" "$ACCOUNT_ID"
 
+# The pods reach the account through the identity above. The person running this
+# script reaches it as themselves, and 'az storage blob upload --auth-mode login'
+# is refused without the data roles: control plane Owner does not carry them.
+if [ "$OPERATOR_ROLES" = "true" ]; then
+  resolve_operator
+  if [ -n "$OPERATOR_OBJECT_ID" ]; then
+    log "granting the signed in operator the storage data roles"
+    ensure_role_assignment "Storage Blob Data Contributor"  "$OPERATOR_OBJECT_ID" "$ACCOUNT_ID" "$OPERATOR_PRINCIPAL_TYPE"
+    ensure_role_assignment "Storage Queue Data Contributor" "$OPERATOR_OBJECT_ID" "$ACCOUNT_ID" "$OPERATOR_PRINCIPAL_TYPE"
+  else
+    log "warning: could not read the signed in principal's object id, so the storage data roles were not granted to it."
+    step "'az storage ... --auth-mode login' will be refused. Add --account-key to those commands, or grant the roles by hand:"
+    step "az role assignment create --assignee <you> --role 'Storage Blob Data Contributor' --scope $ACCOUNT_ID"
+  fi
+else
+  log "skipping the operator role grants (--no-operator-roles)"
+  step "'az storage ... --auth-mode login' needs 'Storage Blob Data Contributor' and 'Storage Queue Data Contributor' on the account."
+fi
+
 ###############################################################################
 # Event Grid, blob created to the index queue
 ###############################################################################
@@ -399,7 +491,22 @@ elif [ "$CREATE_AKS" = "true" ]; then
   if [ -n "$AKS_NODE_SIZE" ]; then
     AKS_CREATE_ARGS+=(--node-vm-size "$AKS_NODE_SIZE")
   fi
-  az aks create "${AKS_CREATE_ARGS[@]}"
+
+  # Output is held and replayed on failure, so that the size refusal message is
+  # readable next to the retry command rather than scrolled off by the spinner.
+  AKS_CREATE_LOG="$(mktemp "${TMPDIR:-/tmp}/tenx-aks-create.XXXXXX")"
+  if az aks create "${AKS_CREATE_ARGS[@]}" >"$AKS_CREATE_LOG" 2>&1; then
+    rm -f "$AKS_CREATE_LOG"
+  else
+    cat "$AKS_CREATE_LOG" >&2
+    if grep -q "is not allowed in your subscription" "$AKS_CREATE_LOG"; then
+      rm -f "$AKS_CREATE_LOG"
+      node_size_help
+      die "AKS cluster $AKS_NAME was not created: node size $AKS_NODE_SIZE is not allowed in this subscription."
+    fi
+    rm -f "$AKS_CREATE_LOG"
+    die "AKS cluster $AKS_NAME was not created."
+  fi
 else
   die "AKS cluster $AKS_NAME was not found in $RESOURCE_GROUP. Pass --create-aks $AKS_NAME to create it."
 fi
@@ -483,19 +590,16 @@ log "writing $VALUES_OUT"
 # storage account $ACCOUNT
 # AKS cluster     $AKS_NAME
 #
-# The Log10x license key is deliberately absent. Pass it at install time:
+# The Log10x license key is deliberately absent. It is optional: without one the
+# engine runs on its built-in evaluation license. With one, pass it at install
+# time rather than writing it here:
 #   --set-string log10xApiKey="\$LOG10X_API_KEY"
 
 fullnameOverride: "$RELEASE"
-VALUES
-
-  if [ -n "$IMAGE_TAG" ]; then
-    cat <<VALUES
 
 image:
   tag: "$IMAGE_TAG"
 VALUES
-  fi
 
   cat <<VALUES
 
@@ -529,31 +633,59 @@ VALUES
 # what to run next
 ###############################################################################
 
-QUERY_BODY='{"name":"first","from":"now(\"-1h\")","to":"now()","search":"severity_level==\"ERROR\"","writeResults":true}'
+QUERY_BODY='{"name":"app","from":"now(\"-1h\")","to":"now()","search":"severity_level==\"ERROR\"","writeResults":true}'
 
 cat >&2 <<NEXT
 
-Provisioned. Two commands follow.
+Provisioned. Five steps follow.
 
-1. Install the chart. Set LOG10X_API_KEY first, the key is not in the values file.
+1. Point kubectl at the cluster.
 
+az aks get-credentials -n $AKS_NAME -g $RESOURCE_GROUP --file $KUBECONFIG_OUT --overwrite-existing
 export KUBECONFIG=$KUBECONFIG_OUT
+
+2. Install the chart. The Log10x license key is optional: without one the engine
+   runs on its built-in evaluation license. To install with a key, add
+   --set-string log10xApiKey="\$LOG10X_API_KEY".
+
 helm install $RELEASE log10x/retriever-10x \\
   --namespace $NAMESPACE \\
   --create-namespace \\
-  -f $VALUES_OUT \\
-  --set-string log10xApiKey="\$LOG10X_API_KEY"
+  -f $VALUES_OUT
 
-2. Upload a log to the $INPUT_CONTAINER container, wait for the index to be
-   written, then put a query on the $QUEUE_QUERY queue. Results land as JSONL
-   under $INDEX_CONTAINER/$INDEX_PATH/<app>/qr/<queryId>/.
+3. Watch the pod reach Running.
+
+kubectl -n $NAMESPACE get pods -w
+
+4. Upload a log to the $INPUT_CONTAINER container. The first path segment of the
+   blob name is the application name, and the query below has to carry the same
+   name. Event Grid delivers the BlobCreated event to $QUEUE_INDEX and the pod
+   writes the index.
+
+az storage blob upload \\
+  --account-name $ACCOUNT \\
+  --auth-mode login \\
+  -c $INPUT_CONTAINER \\
+  -n app/test.log \\
+  -f ./test.log \\
+  -o none
+
+5. Put a query on the $QUEUE_QUERY queue. Results land as JSONL under
+   $INDEX_CONTAINER/$INDEX_PATH/tenx/app/qr/<queryId>/ in the storage account.
 
 az storage message put \\
   --account-name $ACCOUNT \\
+  --auth-mode login \\
   --queue-name $QUEUE_QUERY \\
-  --account-key "\$(az storage account keys list -n $ACCOUNT -g $RESOURCE_GROUP --query '[0].value' -o tsv)" \\
   --content '$QUERY_BODY' \\
   -o none
+
+az storage blob list \\
+  --account-name $ACCOUNT \\
+  --auth-mode login \\
+  -c $INDEX_CONTAINER \\
+  --prefix $INDEX_PATH/tenx/app/qr/ \\
+  --query "[].name" -o tsv
 
 Tear everything down with:
   $SCRIPT_NAME --destroy --resource-group $RESOURCE_GROUP
