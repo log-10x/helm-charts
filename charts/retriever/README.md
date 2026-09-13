@@ -28,6 +28,7 @@ On Azure, substitute Azure Storage Queues and Blob containers and see
 
 ```bash
 helm install my-retriever log10x/retriever-10x \
+  --version 1.0.24 \
   --set log10xApiKey="your-api-key" \
   --set indexQueueUrl="https://sqs.us-west-2.amazonaws.com/.../index-queue" \
   --set queryQueueUrl="https://sqs.us-west-2.amazonaws.com/.../query-queue" \
@@ -106,7 +107,7 @@ fluentBit:
 Install:
 
 ```bash
-helm install my-retriever log10x/retriever-10x -f values.yaml
+helm install my-retriever log10x/retriever-10x --version 1.0.24 -f values.yaml
 ```
 
 ## Key Configuration
@@ -278,18 +279,38 @@ account. It then writes the values file that installs against all of it.
 Re-running converges on the same state; `--destroy` deletes the resource group.
 
 ```bash
-scripts/azure/provision-retriever.sh \
+bash scripts/azure/provision-retriever.sh \
   --resource-group tenx-retriever --location eastus --account tenxlogs \
   --create-aks tenx-aks --namespace tenx --release retriever \
-  --values-out ./azure-values.yaml
+  --values-out ./values/azure-values.yaml
 ```
+
+Run it through `bash`. `helm package` writes every file in a chart tarball as
+mode 0644 whatever its mode in git, so the copy that comes out of `helm pull
+--untar` is not executable and `./provision-retriever.sh` is refused with
+`Permission denied`.
+
+The directory for `--values-out` does not have to exist; the script creates it.
+A path it cannot create or cannot write to is still refused.
+
+`--dry-run` validates the arguments, creates that directory, prints what would
+be provisioned and stops without touching a single Azure resource.
 
 Three settings the script pins, each of which costs a run when it is wrong:
 
 **Image tag.** `--image-tag` defaults to `1.1.78`, a published engine image that
-carries the Azure Blob index and read path, and the values file always carries an
-`image.tag`. With no tag the release falls back to the chart's `appVersion`,
-which predates Azure support.
+carries the Azure Blob index and read path, and the emitted values file always
+pins it as `image.tag`. A hand-written values file has to pin `image.tag` too.
+The chart's `values.yaml` ships `image.tag: ""`, which falls back to the chart's
+`appVersion`, and that `appVersion` is `1.0.20`: older than the first engine
+that can index or read Azure Blob Storage. A values file with no `image.tag`
+therefore installs an engine that cannot do the Azure work at all.
+
+**Chart version.** The `helm install` the script prints carries
+`--version 1.0.24`, the version of the chart this script shipped inside, so the
+install matches the script rather than whatever is newest in the repository.
+`CHART_VERSION` in the script and `version` in `Chart.yaml` are kept in sync by
+hand.
 
 **Node size.** `--node-size` defaults to `Standard_D2s_v7`, and `AKS_NODE_SIZE`
 overrides it. Subscriptions differ in which VM sizes they allow, and a refused
@@ -315,6 +336,11 @@ on the account, and a federated credential bound to the service account.
 
 ```yaml
 log10xApiKey: "your-api-key"
+
+# Required. The chart's values.yaml ships image.tag: "", which falls back to the
+# chart appVersion, and that appVersion predates Azure support.
+image:
+  tag: "1.1.78"
 
 storage:
   provider: azure
@@ -343,6 +369,11 @@ The chart adds the `azure.workload.identity/use: "true"` pod label and the
 ```yaml
 log10xApiKey: "your-api-key"
 
+# Required. The chart's values.yaml ships image.tag: "", which falls back to the
+# chart appVersion, and that appVersion predates Azure support.
+image:
+  tag: "1.1.78"
+
 storage:
   provider: azure
   azure:
@@ -362,7 +393,8 @@ storage:
 Install with the key kept out of the values file:
 
 ```bash
-helm install my-retriever log10x/retriever-10x -f azure-values.yaml \
+helm install my-retriever log10x/retriever-10x --version 1.0.24 \
+  -f azure-values.yaml \
   --set-string storage.azure.auth.accountKey="$AZURE_STORAGE_KEY"
 ```
 
