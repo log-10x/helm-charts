@@ -464,6 +464,21 @@ entries:
   retriever-10x:
   - apiVersion: v2
     appVersion: 1.0.20
+    created: "2026-09-13T14:16:52.462164302Z"
+    description: Official Log10x helm chart for SQS-based Retriever Quarkus deployment
+      with optional Ingress support
+    digest: 49655cce282cd10a21f8323637247fba823a2617ee649183fccf808d68c9a250
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: retriever-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/retriever-10x-1.0.23/retriever-10x-1.0.23.tgz
+    version: 1.0.23
+  - apiVersion: v2
+    appVersion: 1.0.20
     created: "2026-09-13T12:13:17.828482746Z"
     description: Official Log10x helm chart for SQS-based Retriever Quarkus deployment
       with optional Ingress support
@@ -718,4 +733,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-09-13T12:13:17.828545368Z"
+generated: "2026-09-13T14:16:52.462288692Z"
