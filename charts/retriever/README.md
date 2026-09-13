@@ -16,7 +16,7 @@ Stream workers automatically include a **fluent-bit sidecar** for log forwarding
 - Kubernetes 1.19+
 - Helm 3.0+
 - AWS SQS queues (recommended: use [terraform-aws-tenx-retriever-infra](https://registry.terraform.io/modules/log-10x/tenx-retriever-infra/aws))
-- Log10x API key
+- Log10x API key, or nothing, to run on the engine's built-in evaluation license
 - AWS credentials configured (via IRSA or service account annotations)
 
 On Azure, substitute Azure Storage Queues and Blob containers and see
@@ -115,7 +115,7 @@ helm install my-retriever log10x/retriever-10x -f values.yaml
 
 | Parameter | Description | Required |
 |-----------|-------------|----------|
-| `log10xApiKey` | Log10x API key | Yes |
+| `log10xApiKey` | Log10x API key. Leave it empty and name no `apiKeySecret.existingSecret` to run on the engine's built-in evaluation license: the chart then creates no Secret and sets no `TENX_API_KEY`. | No |
 | `indexQueueUrl` | SQS queue URL for index operations | For index role |
 | `queryQueueUrl` | SQS queue URL for query operations | For query role |
 | `subQueryQueueUrl` | SQS queue URL for sub-query operations | For query role |
@@ -266,6 +266,46 @@ kubectl create job --from=cronjob/<release>-retriever-10x-<job-name> manual-run
 Set `storage.provider: azure` to run against Azure Blob Storage and Azure Storage
 Queues instead of S3 and SQS. The S3 and SQS keys are ignored; containers and
 queues come from `storage.azure`. The default, `aws`, is unchanged.
+
+### Provisioning Script
+
+`scripts/azure/provision-retriever.sh` creates the resource group, the storage
+account, the input and index containers, the four Storage Queues, the managed
+identity and its role assignments, the Event Grid subscription that feeds the
+index queue, an AKS cluster with the OIDC issuer and workload identity enabled,
+and the federated credential that binds the identity to the release service
+account. It then writes the values file that installs against all of it.
+Re-running converges on the same state; `--destroy` deletes the resource group.
+
+```bash
+scripts/azure/provision-retriever.sh \
+  --resource-group tenx-retriever --location eastus --account tenxlogs \
+  --create-aks tenx-aks --namespace tenx --release retriever \
+  --values-out ./azure-values.yaml
+```
+
+Three settings the script pins, each of which costs a run when it is wrong:
+
+**Image tag.** `--image-tag` defaults to `1.1.78`, a published engine image that
+carries the Azure Blob index and read path, and the values file always carries an
+`image.tag`. With no tag the release falls back to the chart's `appVersion`,
+which predates Azure support.
+
+**Node size.** `--node-size` defaults to `Standard_D2s_v7`, and `AKS_NODE_SIZE`
+overrides it. Subscriptions differ in which VM sizes they allow, and a refused
+size fails the whole cluster create with `The VM size of <size> is not allowed in
+your subscription`. When that happens the script prints the `az vm list-skus`
+query that lists the sizes this subscription and region do allow, next to the
+exact command to re-run. On the subscription this was proven against,
+`Standard_D2s_v7`, `Standard_D4s_v7` and `Standard_D4as_v7` were all accepted.
+
+**Operator roles.** Owner on the subscription carries no data plane access to
+blobs and queues, so `az storage blob upload --auth-mode login` is refused even
+for the person who created the account. The script grants the signed in operator
+`Storage Blob Data Contributor` and `Storage Queue Data Contributor` on the
+account, alongside the managed identity the pods use. It handles both a user
+login and a service principal login. Pass `--no-operator-roles` to skip the
+grant, and pass `--account-key` on every data plane command instead.
 
 ### Workload Identity (AKS)
 

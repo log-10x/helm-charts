@@ -53,11 +53,13 @@ spec:
           image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag | default $.Chart.AppVersion }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           env:
+            {{- if include "log10x-retriever.apiKeyEnabled" $ }}
             - name: TENX_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.apiKeySecret.existingSecret | default (printf "%s-api-key" (include "log10x-retriever.fullname" $)) }}
                   key: {{ $.Values.apiKeySecret.secretKey }}
+            {{- end }}
             - name: TENX_QUARKUS_MAX_ASYNC
               value: "{{ $cluster.maxParallelRequests | default 10 }}"
             - name: TENX_QUARKUS_MAX_QUEUED

@@ -53,6 +53,27 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Whether the chart itself creates the API key Secret.
+log10xApiKey is optional: with no key and no existingSecret the engine runs on
+its built-in evaluation license, so there is nothing to put in a Secret.
+*/}}
+{{- define "log10x-retriever.apiKeySecretCreated" -}}
+{{- if and .Values.apiKeySecret.create .Values.log10xApiKey -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+Whether TENX_API_KEY is wired into the containers. True when a key was given or
+an existing Secret was named; empty otherwise.
+*/}}
+{{- define "log10x-retriever.apiKeyEnabled" -}}
+{{- if or .Values.apiKeySecret.existingSecret .Values.log10xApiKey -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
 Check if any Git cloning is needed
 Returns "true" if either config.git or symbols.git is enabled
 */}}

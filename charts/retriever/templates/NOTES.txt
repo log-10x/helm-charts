@@ -174,7 +174,7 @@ To view fluent-bit metrics:
   curl http://localhost:2020/api/v1/metrics/prometheus
 {{- end }}
 
-{{- if .Values.scheduledQueries.jobs }}
+{{- if and .Values.scheduledQueries.enabled .Values.scheduledQueries.jobs }}
 
 Scheduled Queries:
 {{- range $job := .Values.scheduledQueries.jobs }}
