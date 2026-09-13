@@ -415,7 +415,8 @@ if [ "$OIDC_ENABLED" != "true" ] || [ "$WI_ENABLED" != "true" ]; then
 fi
 
 AKS_OIDC_ISSUER="$(az aks show -n "$AKS_NAME" -g "$RESOURCE_GROUP" \
-  --query "oidcIssuerProfile.issuerURL" -o tsv)"
+  --query "oidcIssuerProfile.issuerUrl" -o tsv)"
+[ -n "$AKS_OIDC_ISSUER" ] || die "could not read the OIDC issuer URL from $AKS_NAME. Without it the federated credential cannot be created."
 
 log "writing kubeconfig to $KUBECONFIG_OUT"
 az aks get-credentials \
