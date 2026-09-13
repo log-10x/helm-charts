@@ -23,10 +23,68 @@ spec:
             app: {{ include "log10x-retriever.name" $ }}
             component: scheduled-query
             query-job-name: {{ $job.name }}
+            {{- if include "log10x-retriever.azureWorkloadIdentity" $ }}
+            azure.workload.identity/use: "true"
+            {{- end }}
         spec:
           serviceAccountName: {{ include "log10x-retriever.serviceAccountName" $ }}
           restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
           containers:
+{{- if include "log10x-retriever.isAzure" $ }}
+{{- $azureAuth := ((($.Values.storage).azure).auth) | default dict }}
+{{- $azureMethod := $azureAuth.method | default "workloadIdentity" }}
+{{- $queueName := include "log10x-retriever.azureQueueName" ((($.Values.storage).azure).queues).query }}
+            - name: send-query
+              image: "{{ $.Values.scheduledQueries.azureImage.repository }}:{{ $.Values.scheduledQueries.azureImage.tag }}"
+              imagePullPolicy: {{ $.Values.scheduledQueries.azureImage.pullPolicy }}
+              command: ["/bin/bash"]
+              args:
+                - -c
+                - |
+                  set -e
+                  {{- if eq $azureMethod "workloadIdentity" }}
+
+                  az login --service-principal \
+                    --username "$AZURE_CLIENT_ID" \
+                    --tenant "$AZURE_TENANT_ID" \
+                    --federated-token "$(cat "$AZURE_FEDERATED_TOKEN_FILE")" > /dev/null
+                  {{- else if eq $azureMethod "servicePrincipal" }}
+
+                  az login --service-principal \
+                    --username "$AZURE_CLIENT_ID" \
+                    --tenant "$AZURE_TENANT_ID" \
+                    --password "$AZURE_CLIENT_SECRET" > /dev/null
+                  {{- end }}
+
+                  {{- range $query := $job.queries }}
+                  QUERY_BODY=$(cat <<'QUERY_EOF'
+                  {{ $query | toJson }}
+                  QUERY_EOF
+                  )
+
+                  echo "Sending query: {{ $query.name | default "unnamed" }}"
+
+                  az storage message put \
+                    --queue-name "{{ $queueName }}" \
+                    --account-name "$AZURE_STORAGE_ACCOUNT" \
+                    {{- if or (eq $azureMethod "workloadIdentity") (eq $azureMethod "servicePrincipal") }}
+                    --auth-mode login \
+                    {{- else if eq $azureMethod "accountKey" }}
+                    --account-key "$AZURE_STORAGE_KEY" \
+                    {{- else if eq $azureMethod "sasToken" }}
+                    --sas-token "$AZURE_STORAGE_SAS_TOKEN" \
+                    {{- else if eq $azureMethod "connectionString" }}
+                    --connection-string "$AZURE_STORAGE_CONNECTION_STRING" \
+                    {{- end }}
+                    --content "$QUERY_BODY"
+
+                  echo "Query sent successfully: {{ $query.name | default "unnamed" }}"
+                  {{- end }}
+
+                  echo "All queries sent successfully for job: {{ $job.name }}"
+              env:
+                {{- include "log10x-retriever.azureAuthEnvVars" $ | nindent 16 }}
+{{- else }}
             - name: send-query
               image: "{{ $.Values.scheduledQueries.image.repository }}:{{ $.Values.scheduledQueries.image.tag }}"
               imagePullPolicy: {{ $.Values.scheduledQueries.image.pullPolicy }}
@@ -55,6 +113,7 @@ spec:
               env:
                 - name: AWS_DEFAULT_REGION
                   value: {{ $job.awsRegion | default "us-east-1" | quote }}
+{{- end }}
           {{- with $.Values.imagePullSecrets }}
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}

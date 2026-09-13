@@ -19,6 +19,9 @@ Stream workers automatically include a **fluent-bit sidecar** for log forwarding
 - Log10x API key
 - AWS credentials configured (via IRSA or service account annotations)
 
+On Azure, substitute Azure Storage Queues and Blob containers and see
+[Azure Blob Storage](#azure-blob-storage).
+
 ## Quick Start
 
 ### Basic Installation (Single All-in-One Cluster)
@@ -257,6 +260,101 @@ kubectl logs job/<job-name>
 # Manually trigger a scheduled query (replace <job-name> with the name from scheduledQueries.jobs[].name)
 kubectl create job --from=cronjob/<release>-retriever-10x-<job-name> manual-run
 ```
+
+## Azure Blob Storage
+
+Set `storage.provider: azure` to run against Azure Blob Storage and Azure Storage
+Queues instead of S3 and SQS. The S3 and SQS keys are ignored; containers and
+queues come from `storage.azure`. The default, `aws`, is unchanged.
+
+### Workload Identity (AKS)
+
+Requires the workload identity webhook on the cluster, a user-assigned managed
+identity with `Storage Blob Data Contributor` and `Storage Queue Data Contributor`
+on the account, and a federated credential bound to the service account.
+
+```yaml
+log10xApiKey: "your-api-key"
+
+storage:
+  provider: azure
+  azure:
+    account: tenxlogs
+    indexContainer: "tenxlogs/index/"
+    inputContainer: "rawlogs"
+    queues:
+      index: index-queue
+      query: query-queue
+      subquery: subquery-queue
+      stream: stream-queue
+    auth:
+      method: workloadIdentity
+      clientId: "<managed identity client id>"
+      tenantId: "<entra tenant id>"
+```
+
+The chart adds the `azure.workload.identity/use: "true"` pod label and the
+`azure.workload.identity/client-id` service account annotation. The webhook injects
+`AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_FEDERATED_TOKEN_FILE`. Any
+`eks.amazonaws.com/*` annotation on the service account is dropped.
+
+### Account Key
+
+```yaml
+log10xApiKey: "your-api-key"
+
+storage:
+  provider: azure
+  azure:
+    account: tenxlogs
+    indexContainer: "tenxlogs/index/"
+    inputContainer: "rawlogs"
+    queues:
+      index: index-queue
+      query: query-queue
+      subquery: subquery-queue
+      stream: stream-queue
+    auth:
+      method: accountKey
+      accountKey: ""  # provide via --set-string storage.azure.auth.accountKey=<key>
+```
+
+Install with the key kept out of the values file:
+
+```bash
+helm install my-retriever log10x/retriever-10x -f azure-values.yaml \
+  --set-string storage.azure.auth.accountKey="$AZURE_STORAGE_KEY"
+```
+
+### Azure Parameters
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `storage.provider` | `aws` or `azure` | No, defaults to `aws` |
+| `storage.azure.account` | Storage account name | Yes |
+| `storage.azure.indexContainer` | `account/container/path` or `container/path` for indexed results | Yes |
+| `storage.azure.inputContainer` | Container holding source logs | Recommended |
+| `storage.azure.queues.index` | Storage Queue for index operations | For index role |
+| `storage.azure.queues.query` | Storage Queue for query operations | For query role and scheduled queries |
+| `storage.azure.queues.subquery` | Storage Queue for sub-query operations | For query role |
+| `storage.azure.queues.stream` | Storage Queue for stream operations | For stream role |
+| `storage.azure.auth.method` | `workloadIdentity`, `servicePrincipal`, `accountKey`, `sasToken`, `connectionString` | Yes |
+| `storage.azure.auth.clientId` / `.tenantId` | Managed identity or Entra application ids | For workloadIdentity and servicePrincipal |
+| `storage.azure.auth.secret.existingSecret` | Hold the credential in a secret you manage | No |
+| `storage.azure.auth.secret.secretKey` | Key within that secret | No, defaults to `azure-credential` |
+| `storage.azure.invoke` | Fan-out transport: `queue` or `http` (`TENX_OBJECT_STORAGE_INVOKE`) | No, defaults to `queue` |
+| `storage.azure.accessorClass` | Quarkus cloud accessor class (`tenx.quarkus.cloud.accessor.class`) | No |
+| `storage.azure.endpoint` / `.queueEndpoint` / `.pathStyle` | Endpoint overrides for Azurite or sovereign clouds | No |
+
+Exactly one credential may be set, and it must match `auth.method`.
+`workloadIdentity` takes none.
+
+**Not available on Azure:** `queryLogGroup` writes to CloudWatch Logs and has no
+Azure equivalent. Leave it unset.
+
+Scheduled queries use `mcr.microsoft.com/azure-cli` and `az storage message put`
+against `storage.azure.queues.query`. Override the image with
+`scheduledQueries.azureImage`.
 
 ## AWS IAM Configuration
 
