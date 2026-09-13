@@ -51,8 +51,11 @@ DESTROY="false"
 
 # AKS node pool for a cluster this script creates. Two nodes carry the
 # all-in-one retriever and leave headroom for the workload identity webhook.
+# AKS_NODE_SIZE is empty by default so the cluster takes the CLI's own default
+# size. Subscriptions differ in which sizes they allow, and a hard coded size
+# that the subscription refuses fails the whole run.
 AKS_NODE_COUNT="${AKS_NODE_COUNT:-2}"
-AKS_NODE_SIZE="${AKS_NODE_SIZE:-Standard_D2s_v3}"
+AKS_NODE_SIZE="${AKS_NODE_SIZE:-}"
 
 # Name of the federated credential on the managed identity.
 FEDERATED_CREDENTIAL_NAME="retriever-sa"
@@ -97,7 +100,9 @@ options:
 
 environment:
   AKS_NODE_COUNT          node count for a created cluster, default 2
-  AKS_NODE_SIZE           node size for a created cluster, default Standard_D2s_v3
+  AKS_NODE_SIZE           node size for a created cluster, default is whatever
+                          the Azure CLI picks. Set it when the subscription
+                          refuses that size.
 USAGE
 }
 
@@ -381,16 +386,20 @@ if az aks show -n "$AKS_NAME" -g "$RESOURCE_GROUP" -o none 2>/dev/null; then
   log "AKS cluster $AKS_NAME is already there"
 elif [ "$CREATE_AKS" = "true" ]; then
   log "creating AKS cluster $AKS_NAME, this takes several minutes"
-  az aks create \
-    -n "$AKS_NAME" \
-    -g "$RESOURCE_GROUP" \
-    -l "$LOCATION" \
-    --node-count "$AKS_NODE_COUNT" \
-    --node-vm-size "$AKS_NODE_SIZE" \
-    --enable-oidc-issuer \
-    --enable-workload-identity \
-    --no-ssh-key \
+  AKS_CREATE_ARGS=(
+    -n "$AKS_NAME"
+    -g "$RESOURCE_GROUP"
+    -l "$LOCATION"
+    --node-count "$AKS_NODE_COUNT"
+    --enable-oidc-issuer
+    --enable-workload-identity
+    --no-ssh-key
     -o none
+  )
+  if [ -n "$AKS_NODE_SIZE" ]; then
+    AKS_CREATE_ARGS+=(--node-vm-size "$AKS_NODE_SIZE")
+  fi
+  az aks create "${AKS_CREATE_ARGS[@]}"
 else
   die "AKS cluster $AKS_NAME was not found in $RESOURCE_GROUP. Pass --create-aks $AKS_NAME to create it."
 fi
