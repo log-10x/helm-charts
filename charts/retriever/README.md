@@ -291,7 +291,7 @@ carries the Azure Blob index and read path, and the values file always carries a
 `image.tag`. With no tag the release falls back to the chart's `appVersion`,
 which predates Azure support.
 
-**Node size.** `--node-size` defaults to `Standard_D2s_v5`, and `AKS_NODE_SIZE`
+**Node size.** `--node-size` defaults to `Standard_D2s_v7`, and `AKS_NODE_SIZE`
 overrides it. Subscriptions differ in which VM sizes they allow, and a refused
 size fails the whole cluster create with `The VM size of <size> is not allowed in
 your subscription`. When that happens the script prints the `az vm list-skus`

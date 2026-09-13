@@ -61,7 +61,7 @@ DESTROY="false"
 # refused for the size, the script prints the retry command and the query that
 # lists the sizes this subscription and region do allow.
 AKS_NODE_COUNT="${AKS_NODE_COUNT:-2}"
-AKS_NODE_SIZE="${AKS_NODE_SIZE:-Standard_D2s_v5}"
+AKS_NODE_SIZE="${AKS_NODE_SIZE:-Standard_D2s_v7}"
 
 # Name of the federated credential on the managed identity.
 FEDERATED_CREDENTIAL_NAME="retriever-sa"
