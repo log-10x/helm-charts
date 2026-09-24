@@ -41,10 +41,12 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
+      # No cosign-release pin: the installer verifies and installs its own
+      # default. The v2.4.1 pin failed on the first run (2026-09-24), because
+      # the installer's bootstrap looked for a detached .sig that release does
+      # not publish (HTTP 404), so chart signing had never actually run.
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
-        with:
-          cosign-release: 'v2.4.1'
 
       # chart-releaser packages into .cr-release-packages/ and creates one
       # release per chart, tagged <chart>-<version>, which is also the .tgz
