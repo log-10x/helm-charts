@@ -1,0 +1,36 @@
+{{- range $index, $cluster := .Values.clusters }}
+{{- if and $cluster.autoscaling $cluster.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    cluster: {{ $cluster.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "log10x-streamer.fullname" $ }}-{{ $cluster.name }}
+  minReplicas: {{ $cluster.autoscaling.minReplicas | default 1 }}
+  maxReplicas: {{ $cluster.autoscaling.maxReplicas | default 5 }}
+  metrics:
+    {{- if $cluster.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $cluster.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if $cluster.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $cluster.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+{{- end }}
+{{- end }}
