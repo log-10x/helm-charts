@@ -2,9 +2,6 @@ apiVersion: v2
 name: streamer-10x
 description: "Deprecated: streamer-10x was renamed retriever-10x. Install log10x/retriever-10x instead (https://github.com/log-10x/helm-charts/tree/main/charts/retriever)."
 home: https://github.com/log-10x/helm-charts
-maintainers:
-  - email: engineering@log10x.com
-    name: log10x
 type: application
 version: 1.0.7
 appVersion: 1.0.6
@@ -14,6 +11,7 @@ appVersion: 1.0.6
 # Its templates and values are 1.0.6's, unchanged, so an upgrade from 1.0.6
 # renders the same objects and `helm install log10x/streamer-10x` keeps
 # working, with Helm's deprecation warning. New installs use retriever-10x.
+# No maintainers: chart-testing rejects a deprecated chart that lists any.
 deprecated: true
 annotations:
   artifacthub.io/changes: |
