@@ -6,5 +6,22 @@ maintainers:
     name: log10x
 name: retriever-10x
 type: application
-version: 1.0.24
+version: 1.0.25
+# artifacthub.io/images below names this tag. Change both together.
 appVersion: 1.0.20
+annotations:
+  # Artifact Hub finds a chart's images by rendering it with default values.
+  # This chart does not render with them: scheduledQueries is enabled with a
+  # job by default and templates/validation.yaml requires queryQueueUrl for
+  # it. The images are listed here instead: the ones an install that sets
+  # queryQueueUrl and leaves everything else at its default runs.
+  artifacthub.io/images: |
+    - name: quarkus-10x
+      image: log10x/quarkus-10x:1.0.20
+    - name: fluent-bit
+      image: fluent/fluent-bit:3.2.7
+    - name: aws-cli
+      image: amazon/aws-cli:2.15.17
+  artifacthub.io/changes: |
+    - kind: added
+      description: "artifacthub.io/images annotation naming the three images a default install runs, so Artifact Hub can scan them. It cannot find them on its own: with default values the chart stops at its queryQueueUrl validation. No template or value changed."

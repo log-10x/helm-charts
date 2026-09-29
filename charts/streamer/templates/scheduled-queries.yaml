@@ -1,0 +1,63 @@
+{{- if and .Values.scheduledQueries .Values.scheduledQueries.enabled .Values.scheduledQueries.jobs (gt (len .Values.scheduledQueries.jobs) 0) }}
+{{- range $job := .Values.scheduledQueries.jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "log10x-streamer.fullname" $ }}-{{ $job.name }}
+  labels:
+    {{- include "log10x-streamer.labels" $ | nindent 4 }}
+    component: scheduled-query
+    query-job-name: {{ $job.name }}
+spec:
+  schedule: {{ $job.schedule | quote }}
+  suspend: {{ $job.suspend | default false }}
+  successfulJobsHistoryLimit: {{ $job.successfulJobsHistoryLimit | default 3 }}
+  failedJobsHistoryLimit: {{ $job.failedJobsHistoryLimit | default 1 }}
+  concurrencyPolicy: {{ $job.concurrencyPolicy | default "Forbid" }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: {{ include "log10x-streamer.name" $ }}
+            component: scheduled-query
+            query-job-name: {{ $job.name }}
+        spec:
+          serviceAccountName: {{ include "log10x-streamer.serviceAccountName" $ }}
+          restartPolicy: {{ $job.restartPolicy | default "OnFailure" }}
+          containers:
+            - name: send-query
+              image: "{{ $.Values.scheduledQueries.image.repository }}:{{ $.Values.scheduledQueries.image.tag }}"
+              imagePullPolicy: {{ $.Values.scheduledQueries.image.pullPolicy }}
+              command: ["/bin/bash"]
+              args:
+                - -c
+                - |
+                  set -e
+
+                  {{- range $query := $job.queries }}
+                  QUERY_BODY=$(cat <<'QUERY_EOF'
+                  {{ $query | toJson }}
+                  QUERY_EOF
+                  )
+
+                  echo "Sending query: {{ $query.name | default "unnamed" }}"
+
+                  aws sqs send-message \
+                    --queue-url "{{ $.Values.queryQueueUrl }}" \
+                    --message-body "$QUERY_BODY"
+
+                  echo "Query sent successfully: {{ $query.name | default "unnamed" }}"
+                  {{- end }}
+
+                  echo "All queries sent successfully for job: {{ $job.name }}"
+              env:
+                - name: AWS_DEFAULT_REGION
+                  value: {{ $job.awsRegion | default "us-east-1" | quote }}
+          {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}
