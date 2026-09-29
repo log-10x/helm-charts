@@ -1,8 +1,9 @@
 # Artifact Hub repository metadata, read from beside index.yaml.
 # Format: https://github.com/artifacthub/hub/blob/master/docs/metadata/artifacthub-repo.yml
 #
-# repositoryID is added once the repository is registered on Artifact Hub,
-# which issues it. It is what gives the listing the verified publisher mark.
+# repositoryID was issued by Artifact Hub when the repository was registered
+# (2026-09-29, organization log10x). It gives the listing the verified publisher mark.
+repositoryID: 7a8a5912-f401-46f8-9e45-16bf1a500e29
 owners:
   - name: talwgx
     email: engineering@log10x.com
