@@ -1,4 +1,4 @@
-Log10x Edge Reporter has been deployed as a DaemonSet.
+The Log10x Reporter has been deployed as a DaemonSet.
 
   Release: {{ .Release.Name }}
   Namespace: {{ .Release.Namespace }}
