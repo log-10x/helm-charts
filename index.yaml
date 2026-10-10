@@ -277,6 +277,21 @@ entries:
   env-config-10x:
   - apiVersion: v2
     appVersion: 1.0.0
+    created: "2026-10-10T22:25:43.759271246Z"
+    description: Log10x environment descriptor ConfigMap consumed by Reporter, Receiver,
+      Retriever, and the log10x-mcp resolver
+    digest: e301b0a1d3e2404189e6c8bf2cd8181d951145bcc404687687b0c47655013f2e
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: env-config-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/env-config-10x-1.0.1/env-config-10x-1.0.1.tgz
+    version: 1.0.1
+  - apiVersion: v2
+    appVersion: 1.0.0
     created: "2026-08-14T14:20:48.03837736Z"
     description: Log10x environment descriptor ConfigMap consumed by Reporter, Receiver,
       Retriever, and the log10x-mcp resolver
@@ -291,6 +306,21 @@ entries:
     - https://github.com/log-10x/helm-charts/releases/download/env-config-10x-1.0.0/env-config-10x-1.0.0.tgz
     version: 1.0.0
   reporter-10x:
+  - apiVersion: v2
+    appVersion: 1.1.74
+    created: "2026-10-10T22:25:43.962762585Z"
+    description: Official Log10x helm chart for non-invasive edge log reporting via
+      a parallel DaemonSet
+    digest: 172e0d9c5aae6c88ef16ea6fdc47df37bba1ebae76b6b5a043ddab3bd56dc995
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: reporter-10x
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/reporter-10x-1.2.4/reporter-10x-1.2.4.tgz
+    version: 1.2.4
   - apiVersion: v2
     appVersion: 1.1.74
     created: "2026-09-02T16:28:05.338489633Z"
@@ -816,4 +846,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-09-29T02:16:06.510475959Z"
+generated: "2026-10-10T22:25:43.96288291Z"
