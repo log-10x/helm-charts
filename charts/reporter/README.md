@@ -38,7 +38,7 @@ A minimal yaml setting up reporting is:
 log10xLicenseJwt: "YOUR-LOG10X-LICENSE-JWT"
 ```
 
-That's all — defaults collect logs from all namespaces and ship them to the 10x sidecar with a ~250 Mi / 150m CPU per-node footprint (under 3% of a typical node).
+That's all. Defaults collect logs from all namespaces and ship them to the 10x sidecar. Per node the engine peaks at about 340 Mi on a microservices stream, within a 768Mi limit, and the CPU requests total 150m.
 
 For full chart options check out [values.yaml](values.yaml), or the [examples](https://github.com/log-10x/helm-charts/tree/main/charts/reporter/examples) directory for complete sample configurations.
 
@@ -156,7 +156,7 @@ Patterns use [Fluent Bit's grep filter](https://docs.fluentbit.io/manual/pipelin
 
 ### Resource management
 
-Defaults are tuned for typical clusters (~250 Mi memory, 150m CPU per node):
+Engine memory grows with the distinct patterns in the node's logs, not with GB per day. The defaults set a 512m heap (`tenx.maxHeap`, passed as `-Xmx`) inside a 768Mi limit:
 
 ```yaml
 fluentbit:
@@ -169,16 +169,17 @@ fluentbit:
       memory: 128Mi
 
 tenx:
+  maxHeap: "512m"
   resources:
     requests:
       cpu: 100m
       memory: 192Mi
     limits:
       cpu: 300m
-      memory: 384Mi
+      memory: 768Mi
 ```
 
-For high-volume environments (>1000 containers/node or sustained >10K events/sec), consider increasing the `tenx` sidecar to ~300 Mi request / 512 Mi limit and 200m CPU limit.
+Measured with these defaults: on a microservices stream (the OpenTelemetry demo, 197,430 lines) the engine peaks at 337 Mi and Fluent Bit at 40 Mi; on 4,747,963 lines with 136,461 distinct templates (LogHub BGL) the engine peaks at 699 Mi and is not killed. Raise `maxHeap` and the limit together, keeping the limit 256Mi above the heap.
 
 ### DaemonSet placement
 

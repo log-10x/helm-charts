@@ -156,6 +156,9 @@ spec:
             {{- toYaml . | nindent 12 }}
             {{- end }}
           args:
+            {{- with .Values.tenx.maxHeap }}
+            - {{ printf "-Xmx%s" . | quote }}
+            {{- end }}
             {{- toYaml .Values.tenx.args | nindent 12 }}
             {{- with .Values.tenx.extraArgs }}
             {{- toYaml . | nindent 12 }}
