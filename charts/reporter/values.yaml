@@ -7,11 +7,11 @@
 #
 # ── Resource footprint ──
 #
-# The combined default footprint is ~250 Mi memory and 150m CPU per node,
-# under 3% of a typical node's resources. Defaults are tuned for most
-# clusters out of the box. For high-volume environments (thousands of
-# containers per node), you may need to increase the limits — see resource
-# sections below for guidance.
+# Engine memory grows with the distinct patterns in the node's logs, not with
+# GB per day. On a microservices stream (the OpenTelemetry demo) the engine
+# peaks at 337 Mi and Fluent Bit at 40 Mi; on a stream of 136,461 distinct
+# templates (LogHub BGL) the engine peaks at 699 Mi. Both fit the defaults
+# below: a 512m heap in a 768Mi limit. CPU requests total 150m per node.
 
 # Allows overriding base names
 nameOverride: ""
@@ -78,18 +78,21 @@ tenx:
   # Must match between the Fluent Bit forward output and 10x input
   socketPath: "/tenx-sockets/tenx-reporter.sock"
 
-  # Resource defaults for the Log10x native sidecar.
-  # The native binary has a ~140 Mi baseline RSS. The defaults below are
-  # sufficient for most clusters. For high-volume environments (>1000
-  # containers/node or sustained >10K events/sec), consider increasing to
-  # 300 Mi request / 512 Mi limit and 200m CPU limit.
+  # Maximum heap for the native engine, passed as -Xmx before `args`. Without
+  # it the engine sizes its heap from the container's memory and can be
+  # OOM-killed by the kernel instead. Keep the memory limit 256Mi above it
+  # for the native runtime. Set to "" to pass no heap flag.
+  maxHeap: "512m"
+
+  # Resource defaults for the Log10x native sidecar. The limit holds a
+  # maxHeap of 512m plus the native runtime.
   resources:
     requests:
       cpu: 100m
       memory: 192Mi
     limits:
       cpu: 300m
-      memory: 384Mi
+      memory: 768Mi
 
   securityContext:
     runAsUser: 10001
