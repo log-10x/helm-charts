@@ -65,13 +65,32 @@ Create the name of the service account to use
 Fluent Bit image
 */}}
 {{- define "log10x-reporter.fluentbitImage" -}}
+{{- if .Values.fluentbit.image.digest -}}
+{{- printf "%s@%s" .Values.fluentbit.image.repository .Values.fluentbit.image.digest -}}
+{{- else -}}
 {{- printf "%s:%s" .Values.fluentbit.image.repository .Values.fluentbit.image.tag -}}
+{{- end -}}
 {{- end }}
 
 {{/*
 Log10x sidecar image
 */}}
 {{- define "log10x-reporter.tenxImage" -}}
+{{- if .Values.tenx.image.digest -}}
+{{- printf "%s@%s" .Values.tenx.image.repository .Values.tenx.image.digest -}}
+{{- else -}}
 {{- $tag := default .Chart.AppVersion .Values.tenx.image.tag -}}
 {{- printf "%s:%s" .Values.tenx.image.repository $tag -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Git config fetcher init container image
+*/}}
+{{- define "log10x-reporter.configFetcherImage" -}}
+{{- if .Values.configFetcherImage.digest -}}
+{{- printf "%s@%s" .Values.configFetcherImage.repository .Values.configFetcherImage.digest -}}
+{{- else -}}
+{{- printf "%s:%s" .Values.configFetcherImage.repository .Values.configFetcherImage.tag -}}
+{{- end -}}
 {{- end }}
