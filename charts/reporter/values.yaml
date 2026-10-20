@@ -23,6 +23,9 @@ fluentbit:
   image:
     repository: fluent/fluent-bit
     tag: "4.2"
+    # Optional sha256 digest. When set, the image is pulled by digest and the
+    # tag is ignored.
+    digest: ""
     pullPolicy: IfNotPresent
 
   # Fluent Bit log level (error, warning, info, debug, trace)
@@ -56,6 +59,9 @@ tenx:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Optional sha256 digest. When set, the image is pulled by digest and the
+    # tag is ignored.
+    digest: ""
 
   # CLI arguments passed to the 10x engine.
   # The engine receives events from Fluent Bit via the Forward protocol.
@@ -129,6 +135,9 @@ tenx:
 configFetcherImage:
   repository: log10x/git-config-fetcher
   tag: "1.0.0"
+  # Optional sha256 digest. When set, the image is pulled by digest and the
+  # tag is ignored.
+  digest: ""
   pullPolicy: IfNotPresent
 
 # When replacing the image to your own custom one, allows for setting

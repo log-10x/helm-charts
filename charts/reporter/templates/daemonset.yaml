@@ -44,7 +44,7 @@ spec:
       {{- if $gitInit }}
       initContainers:
         - name: tenx-git-config
-          image: "{{ .Values.configFetcherImage.repository }}:{{ .Values.configFetcherImage.tag }}"
+          image: {{ include "log10x-reporter.configFetcherImage" . | quote }}
           imagePullPolicy: {{ .Values.configFetcherImage.pullPolicy }}
           env:
             - name: GIT_TOKEN
