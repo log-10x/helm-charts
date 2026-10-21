@@ -134,7 +134,7 @@ tenx:
 # Used to clone config/symbols repositories when git integration is enabled
 configFetcherImage:
   repository: log10x/git-config-fetcher
-  tag: "1.0.0"
+  tag: "1.0.1"
   # Optional sha256 digest. When set, the image is pulled by digest and the
   # tag is ignored.
   digest: ""
