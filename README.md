@@ -42,20 +42,20 @@ You can then run `helm search repo Log10x` to see the charts.
 
 This repository is licensed under the [MIT License](LICENSE).
 
-### Important: Log10x Product License Required
+### Log10x license
 
-This repository contains deployment tooling for Log10x. While the tooling
-itself is open source, **using Log10x requires a commercial license**.
+This repository contains deployment tooling for Log10x. The tooling
+is open source. The Log10x engine it deploys runs on the built-in Free tier with no license token on up to 10 nodes, with no expiry; above 10 nodes it takes a paid license.
 
 | Component | License |
 |-----------|---------|
 | This repository (Helm charts) | MIT (open source) |
-| Log10x engine and runtime | Commercial license required |
+| Log10x engine and runtime | Free tier on up to 10 nodes; paid license above 10 |
 
 **What this means:**
 - You can freely use, modify, and distribute these Helm charts
-- The Log10x software that these charts deploy requires a paid subscription
-- A valid Log10x license is required to run the deployed software
+- The Log10x engine runs with no license token on up to 10 nodes
+- Above 10 nodes, the engine takes a paid license
 
 **Get Started:**
 - [Log10x Pricing](https://www.log10x.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=helm-charts&utm_content=footer)
