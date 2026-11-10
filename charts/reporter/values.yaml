@@ -22,7 +22,9 @@ fullnameOverride: ""
 fluentbit:
   image:
     repository: fluent/fluent-bit
-    tag: "4.2"
+    # 5.1.5-2 is upstream's rebuild of 5.1.5 with Debian's fixed libbrotli1
+    # (CVE-2026-111497, critical); no 4.2 build carries the fix.
+    tag: "5.1.5-2"
     pullPolicy: IfNotPresent
 
   # Fluent Bit log level (error, warning, info, debug, trace)
