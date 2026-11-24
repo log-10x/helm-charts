@@ -1,4 +1,3 @@
-# Test values for CI pipeline
-# This file provides minimal valid configuration to pass chart validation during testing
-
-log10xLicenseJwt: "test-license-jwt-for-ci-testing-only"
+# Values for chart CI. No licence is set, so the engine runs on its built-in
+# Free tier; a placeholder licence string fails the engine's licence check.
+runtimeName: "ci-reporter"
