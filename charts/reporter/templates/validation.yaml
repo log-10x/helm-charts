@@ -2,7 +2,7 @@
     License validation.
 
     No license is a supported install: the engine runs on its built-in
-    30-day evaluation license (10 nodes, airgapped), so the chart renders
+    Free tier (up to 10 nodes, airgapped), so the chart renders
     with no license Secret, mount, or env var and the engine evaluates.
     What still fails the render is inconsistent explicit configuration.
 */ -}}

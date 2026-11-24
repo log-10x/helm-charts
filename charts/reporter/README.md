@@ -48,7 +48,7 @@ For full chart options check out [values.yaml](values.yaml), or the [examples](h
 
 #### Log10x license
 
-A license is optional: with none configured the engine runs on its built-in 30-day evaluation license (10 nodes, airgapped). For a production license, see [licensing](https://doc.log10x.com/manage/license/). When `log10xLicenseJwt` is set, the chart creates a Kubernetes Secret from the `log10xLicenseJwt` value and mounts it as a file in the engine container (read via `TENX_LICENSE_FILE`):
+A license is optional: with none configured the engine runs on its built-in Free tier (up to 10 nodes, airgapped). For a production license, see [licensing](https://doc.log10x.com/manage/license/). When `log10xLicenseJwt` is set, the chart creates a Kubernetes Secret from the `log10xLicenseJwt` value and mounts it as a file in the engine container (read via `TENX_LICENSE_FILE`):
 
 ```yaml
 log10xLicenseJwt: "your-actual-license-jwt"

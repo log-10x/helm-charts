@@ -140,8 +140,8 @@ imagePullSecrets: []
 ###### Log10x settings ######
 
 # Log10x license JWT. OPTIONAL: with no license the engine runs on its
-# built-in 30-day evaluation license (10 nodes, airgapped) and the chart
-# renders no license Secret at all. Production licenses:
+# built-in Free tier (up to 10 nodes, airgapped) and the chart renders no
+# license Secret at all. Production licenses:
 # https://doc.log10x.com/manage/license/
 #
 # When set, the chart creates a Kubernetes Secret from this value and mounts
