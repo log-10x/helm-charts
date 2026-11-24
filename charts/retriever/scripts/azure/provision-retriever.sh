@@ -51,7 +51,7 @@ INPUT_CONTAINER="logs"
 INDEX_CONTAINER="tenx-index"
 INDEX_PATH="tenx"
 QUEUE_PREFIX="tenx"
-IMAGE_TAG="1.1.78"
+IMAGE_TAG="1.1.183"
 OPERATOR_ROLES="true"
 DESTROY="false"
 DRY_RUN="false"
@@ -66,7 +66,7 @@ DRY_RUN="false"
 # Chart.yaml sits next to it. When one does sit next to it, at ../../Chart.yaml,
 # check_chart_version below compares the two and warns on drift, which is the
 # case every run out of a git checkout or a 'helm pull --untar' takes.
-CHART_VERSION="1.0.24"
+CHART_VERSION="1.0.26"
 
 # AKS node pool for a cluster this script creates. Two nodes carry the
 # all-in-one retriever and leave headroom for the workload identity webhook.
