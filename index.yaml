@@ -3,6 +3,31 @@ entries:
   cron-10x:
   - annotations:
       artifacthub.io/changes: |
+        - kind: changed
+          description: "The default image is log10x/compiler-10x:1.1.183, engine release 1.1.183."
+      artifacthub.io/images: |
+        - name: compiler-10x
+          image: log10x/compiler-10x:1.1.183
+    apiVersion: v2
+    appVersion: 1.1.183
+    created: "2026-11-24T22:37:14.951510037Z"
+    description: Official Log10x helm chart for running the 10x Compiler as a scheduled
+      CronJob
+    digest: 2d0639555fe59fb8c65870969db061430e786eb595104d0c09a0ab2548351c40
+    home: https://github.com/log-10x/helm-charts
+    maintainers:
+    - email: engineering@log10x.com
+      name: log10x
+    name: cron-10x
+    sources:
+    - https://github.com/log-10x/helm-charts
+    - https://github.com/log-10x/docker-images
+    type: application
+    urls:
+    - https://github.com/log-10x/helm-charts/releases/download/cron-10x-1.1.4/cron-10x-1.1.4.tgz
+    version: 1.1.4
+  - annotations:
+      artifacthub.io/changes: |
         - kind: added
           description: "artifacthub.io/images annotation naming log10x/compiler-10x:1.1.45, so Artifact Hub can scan the image. It cannot find the image on its own: the chart refuses to render with default values, which carry no licence. No template or value changed."
       artifacthub.io/images: |
@@ -936,4 +961,4 @@ entries:
     urls:
     - https://github.com/log-10x/helm-charts/releases/download/streamer-10x-0.9.0/streamer-10x-0.9.0.tgz
     version: 0.9.0
-generated: "2026-11-24T22:36:13.832834724Z"
+generated: "2026-11-24T22:37:14.951695775Z"
